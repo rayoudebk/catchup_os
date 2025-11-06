@@ -6,13 +6,87 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		34715BEF2EBBA149009928AA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDD2EBBA149009928AA /* SettingsView.swift */; };
+		34715BF02EBBA149009928AA /* EditContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDC2EBBA149009928AA /* EditContactView.swift */; };
+		34715BF12EBBA149009928AA /* CatchupWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE42EBBA149009928AA /* CatchupWidget.swift */; };
+		34715BF32EBBA149009928AA /* ContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDB2EBBA149009928AA /* ContactDetailView.swift */; };
+		34715BF42EBBA149009928AA /* AddContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD92EBBA149009928AA /* AddContactView.swift */; };
+		34715BF52EBBA149009928AA /* CatchupApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE02EBBA149009928AA /* CatchupApp.swift */; };
+		34715BF62EBBA149009928AA /* CheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD12EBBA149009928AA /* CheckIn.swift */; };
+		34715BF72EBBA149009928AA /* StatsHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD72EBBA149009928AA /* StatsHeaderView.swift */; };
+		34715BF82EBBA149009928AA /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD62EBBA149009928AA /* EmptyStateView.swift */; };
+		34715BF92EBBA149009928AA /* CategoryFilterButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD42EBBA149009928AA /* CategoryFilterButton.swift */; };
+		34715BFB2EBBA149009928AA /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD22EBBA149009928AA /* Contact.swift */; };
+		34715BFC2EBBA149009928AA /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BCF2EBBA149009928AA /* NotificationManager.swift */; };
+		34715BFD2EBBA149009928AA /* CheckInSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDA2EBBA149009928AA /* CheckInSheetView.swift */; };
+		34715BFE2EBBA149009928AA /* ContactRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD52EBBA149009928AA /* ContactRowView.swift */; };
+		34715C072EBBA58F009928AA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE12EBBA149009928AA /* ContentView.swift */; };
+		34715C0E2EBBAE83009928AA /* PhotoCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */; };
+		34715C0F2EBBAE83009928AA /* PhotosManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C0D2EBBAE83009928AA /* PhotosManager.swift */; };
+		34715C102EBBC001009928AA /* GiftIdeaSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C102EBBC002009928AA /* GiftIdeaSection.swift */; };
+		34715C112EBBC003009928AA /* PhotoMemoriesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C112EBBC004009928AA /* PhotoMemoriesSection.swift */; };
+		34715C122EBBC005009928AA /* RemindersSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C122EBBC006009928AA /* RemindersSection.swift */; };
+		34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C132EBBC008009928AA /* ContactHeaderCard.swift */; };
+		34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C142EBBC00A009928AA /* CheckInHistorySection.swift */; };
+		34715C152EBBC00B009928AA /* ContactInfoSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C152EBBC00C009928AA /* ContactInfoSection.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		34715BBC2EBBA0E7009928AA /* catchup_os.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = catchup_os.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		34715BCC2EBBA149009928AA /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
+		34715BCD2EBBA149009928AA /* Catchup.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Catchup.xcodeproj; sourceTree = "<group>"; };
+		34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = catchup_os.xcodeproj; sourceTree = "<group>"; };
+		34715BCF2EBBA149009928AA /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		34715BD12EBBA149009928AA /* CheckIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckIn.swift; sourceTree = "<group>"; };
+		34715BD22EBBA149009928AA /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
+		34715BD42EBBA149009928AA /* CategoryFilterButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryFilterButton.swift; sourceTree = "<group>"; };
+		34715BD52EBBA149009928AA /* ContactRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactRowView.swift; sourceTree = "<group>"; };
+		34715BD62EBBA149009928AA /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
+		34715BD72EBBA149009928AA /* StatsHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsHeaderView.swift; sourceTree = "<group>"; };
+		34715BD92EBBA149009928AA /* AddContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddContactView.swift; sourceTree = "<group>"; };
+		34715BDA2EBBA149009928AA /* CheckInSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInSheetView.swift; sourceTree = "<group>"; };
+		34715BDB2EBBA149009928AA /* ContactDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactDetailView.swift; sourceTree = "<group>"; };
+		34715BDC2EBBA149009928AA /* EditContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditContactView.swift; sourceTree = "<group>"; };
+		34715BDD2EBBA149009928AA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		34715BDF2EBBA149009928AA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		34715BE02EBBA149009928AA /* CatchupApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchupApp.swift; sourceTree = "<group>"; };
+		34715BE12EBBA149009928AA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		34715BE22EBBA149009928AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		34715BE42EBBA149009928AA /* CatchupWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchupWidget.swift; sourceTree = "<group>"; };
+		34715BE52EBBA149009928AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		34715BE72EBBA149009928AA /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
+		34715BE82EBBA149009928AA /* QUICK_START.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICK_START.md; sourceTree = "<group>"; };
+		34715BE92EBBA149009928AA /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		34715BEA2EBBA149009928AA /* SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETUP_GUIDE.md; sourceTree = "<group>"; };
+		34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCarouselView.swift; sourceTree = "<group>"; };
+		34715C0D2EBBAE83009928AA /* PhotosManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosManager.swift; sourceTree = "<group>"; };
+		34715C102EBBC002009928AA /* GiftIdeaSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftIdeaSection.swift; sourceTree = "<group>"; };
+		34715C112EBBC004009928AA /* PhotoMemoriesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoMemoriesSection.swift; sourceTree = "<group>"; };
+		34715C122EBBC006009928AA /* RemindersSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersSection.swift; sourceTree = "<group>"; };
+		34715C132EBBC008009928AA /* ContactHeaderCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactHeaderCard.swift; sourceTree = "<group>"; };
+		34715C142EBBC00A009928AA /* CheckInHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInHistorySection.swift; sourceTree = "<group>"; };
+		34715C152EBBC00C009928AA /* ContactInfoSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactInfoSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		34715C062EBBA4D0009928AA /* Exceptions for "catchup_os" folder in "catchup_os" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				catchup_osApp.swift,
+				ContentView.swift,
+				Item.swift,
+			);
+			target = 34715BBB2EBBA0E7009928AA /* catchup_os */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		34715BBE2EBBA0E7009928AA /* catchup_os */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				34715C062EBBA4D0009928AA /* Exceptions for "catchup_os" folder in "catchup_os" target */,
+			);
 			path = catchup_os;
 			sourceTree = "<group>";
 		};
@@ -32,6 +106,15 @@
 		34715BB32EBBA0E7009928AA = {
 			isa = PBXGroup;
 			children = (
+				34715BCC2EBBA149009928AA /* ARCHITECTURE.md */,
+				34715BCD2EBBA149009928AA /* Catchup.xcodeproj */,
+				34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */,
+				34715BE32EBBA149009928AA /* CatchupApp */,
+				34715BE62EBBA149009928AA /* CatchupWidget */,
+				34715BE72EBBA149009928AA /* Package.swift */,
+				34715BE82EBBA149009928AA /* QUICK_START.md */,
+				34715BE92EBBA149009928AA /* README.md */,
+				34715BEA2EBBA149009928AA /* SETUP_GUIDE.md */,
 				34715BBE2EBBA0E7009928AA /* catchup_os */,
 				34715BBD2EBBA0E7009928AA /* Products */,
 			);
@@ -42,6 +125,88 @@
 			children = (
 				34715BBC2EBBA0E7009928AA /* catchup_os.app */,
 			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		34715BD02EBBA149009928AA /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				34715BCF2EBBA149009928AA /* NotificationManager.swift */,
+				34715C0D2EBBAE83009928AA /* PhotosManager.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		34715BD32EBBA149009928AA /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				34715BD12EBBA149009928AA /* CheckIn.swift */,
+				34715BD22EBBA149009928AA /* Contact.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		34715BD82EBBA149009928AA /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */,
+				34715BD42EBBA149009928AA /* CategoryFilterButton.swift */,
+				34715BD52EBBA149009928AA /* ContactRowView.swift */,
+				34715BD62EBBA149009928AA /* EmptyStateView.swift */,
+				34715BD72EBBA149009928AA /* StatsHeaderView.swift */,
+				34715C102EBBC002009928AA /* GiftIdeaSection.swift */,
+				34715C112EBBC004009928AA /* PhotoMemoriesSection.swift */,
+				34715C122EBBC006009928AA /* RemindersSection.swift */,
+				34715C132EBBC008009928AA /* ContactHeaderCard.swift */,
+				34715C142EBBC00A009928AA /* CheckInHistorySection.swift */,
+				34715C152EBBC00C009928AA /* ContactInfoSection.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		34715BDE2EBBA149009928AA /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				34715BD82EBBA149009928AA /* Components */,
+				34715BD92EBBA149009928AA /* AddContactView.swift */,
+				34715BDA2EBBA149009928AA /* CheckInSheetView.swift */,
+				34715BDB2EBBA149009928AA /* ContactDetailView.swift */,
+				34715BDC2EBBA149009928AA /* EditContactView.swift */,
+				34715BDD2EBBA149009928AA /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		34715BE32EBBA149009928AA /* CatchupApp */ = {
+			isa = PBXGroup;
+			children = (
+				34715BD02EBBA149009928AA /* Managers */,
+				34715BD32EBBA149009928AA /* Models */,
+				34715BDE2EBBA149009928AA /* Views */,
+				34715BDF2EBBA149009928AA /* Assets.xcassets */,
+				34715BE02EBBA149009928AA /* CatchupApp.swift */,
+				34715BE12EBBA149009928AA /* ContentView.swift */,
+				34715BE22EBBA149009928AA /* Info.plist */,
+			);
+			path = CatchupApp;
+			sourceTree = "<group>";
+		};
+		34715BE62EBBA149009928AA /* CatchupWidget */ = {
+			isa = PBXGroup;
+			children = (
+				34715BE42EBBA149009928AA /* CatchupWidget.swift */,
+				34715BE52EBBA149009928AA /* Info.plist */,
+			);
+			path = CatchupWidget;
+			sourceTree = "<group>";
+		};
+		34715BEB2EBBA149009928AA /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
+			sourceTree = "<group>";
+		};
+		34715BED2EBBA149009928AA /* Products */ = {
+			isa = PBXGroup;
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -97,6 +262,16 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 34715BBD2EBBA0E7009928AA /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 34715BEB2EBBA149009928AA /* Products */;
+					ProjectRef = 34715BCD2EBBA149009928AA /* Catchup.xcodeproj */;
+				},
+				{
+					ProductGroup = 34715BED2EBBA149009928AA /* Products */;
+					ProjectRef = 34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				34715BBB2EBBA0E7009928AA /* catchup_os */,
@@ -119,6 +294,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				34715C072EBBA58F009928AA /* ContentView.swift in Sources */,
+				34715BEF2EBBA149009928AA /* SettingsView.swift in Sources */,
+				34715BF02EBBA149009928AA /* EditContactView.swift in Sources */,
+				34715BF12EBBA149009928AA /* CatchupWidget.swift in Sources */,
+				34715BF32EBBA149009928AA /* ContactDetailView.swift in Sources */,
+				34715BF42EBBA149009928AA /* AddContactView.swift in Sources */,
+				34715BF52EBBA149009928AA /* CatchupApp.swift in Sources */,
+				34715BF62EBBA149009928AA /* CheckIn.swift in Sources */,
+				34715BF72EBBA149009928AA /* StatsHeaderView.swift in Sources */,
+				34715BF82EBBA149009928AA /* EmptyStateView.swift in Sources */,
+				34715BF92EBBA149009928AA /* CategoryFilterButton.swift in Sources */,
+				34715C0E2EBBAE83009928AA /* PhotoCarouselView.swift in Sources */,
+				34715C0F2EBBAE83009928AA /* PhotosManager.swift in Sources */,
+				34715BFB2EBBA149009928AA /* Contact.swift in Sources */,
+				34715BFC2EBBA149009928AA /* NotificationManager.swift in Sources */,
+				34715BFD2EBBA149009928AA /* CheckInSheetView.swift in Sources */,
+				34715BFE2EBBA149009928AA /* ContactRowView.swift in Sources */,
+				34715C102EBBC001009928AA /* GiftIdeaSection.swift in Sources */,
+				34715C122EBBC005009928AA /* RemindersSection.swift in Sources */,
+				34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */,
+				34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

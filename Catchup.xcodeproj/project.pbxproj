@@ -1,0 +1,61 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		CatchupApp.swift in Sources = {isa = PBXBuildFile; };
+		ContentView.swift in Sources = {isa = PBXBuildFile; };
+		Contact.swift in Sources = {isa = PBXBuildFile; };
+		CheckIn.swift in Sources = {isa = PBXBuildFile; };
+		ContactRowView.swift in Sources = {isa = PBXBuildFile; };
+		StatsHeaderView.swift in Sources = {isa = PBXBuildFile; };
+		CategoryFilterButton.swift in Sources = {isa = PBXBuildFile; };
+		EmptyStateView.swift in Sources = {isa = PBXBuildFile; };
+		AddContactView.swift in Sources = {isa = PBXBuildFile; };
+		ContactDetailView.swift in Sources = {isa = PBXBuildFile; };
+		CheckInSheetView.swift in Sources = {isa = PBXBuildFile; };
+		EditContactView.swift in Sources = {isa = PBXBuildFile; };
+		NotificationManager.swift in Sources = {isa = PBXBuildFile; };
+		SettingsView.swift in Sources = {isa = PBXBuildFile; };
+		CatchupWidget.swift in Sources = {isa = PBXBuildFile; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		CatchupApp.app = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; };
+		CatchupApp.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		ContentView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		Contact.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		CheckIn.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		ContactRowView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		StatsHeaderView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		CategoryFilterButton.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		EmptyStateView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		AddContactView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		ContactDetailView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		CheckInSheetView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		EditContactView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		NotificationManager.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		SettingsView.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		Info.plist = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; };
+		CatchupWidget.swift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; };
+		CatchupWidget.appex = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		Root = {
+			isa = PBXGroup;
+			children = (
+				CatchupApp,
+				CatchupWidget,
+			);
+		};
+/* End PBXGroup section */
+
+	};
+	rootObject = ProjectObject;
+}
+
