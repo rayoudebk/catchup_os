@@ -15,7 +15,7 @@ struct SettingsView: View {
     @State private var showingShareSheet = false
     @State private var showingAddCategory = false
     @State private var newCategoryName = ""
-    @State private var newCategoryEmoji = "📁"
+    @State private var newCategoryEmoji = ""
     @State private var editMode: EditMode = .active
     
     struct CategoryItem: Identifiable {
@@ -92,6 +92,38 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical, 8)
+            }
+            
+            Section("Support Me!") {
+                Button {
+                    if let url = URL(string: "https://forms.gle/2hMux5XCh9Q4xzdd7") {
+                        openInSafari(url: url)
+                    }
+                } label: {
+                    HStack {
+                        Text("Send your feedback")
+                        Spacer()
+                        Text("💡")
+                            .font(.title3)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Button {
+                    shareApp()
+                } label: {
+                    HStack {
+                        Text("Share this app with friends")
+                        Spacer()
+                        Text("📬")
+                            .font(.title3)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
             
             Section("Notifications") {
@@ -175,29 +207,37 @@ struct SettingsView: View {
                 
                 if allCategories.count < 6 {
                     Button {
-                        // Reset state synchronously before showing sheet
+                        // Reset state first
                         newCategoryName = ""
                         newCategoryEmoji = ""
-                        showingAddCategory = true
+                        // Disable edit mode first, then present sheet after ensuring edit mode is inactive
+                        editMode = .inactive
+                        // Use Task to ensure edit mode change is processed before presenting
+                        Task { @MainActor in
+                            // Small delay to ensure edit mode transition completes
+                            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+                            showingAddCategory = true
+                        }
                     } label: {
                         Label("Add Category", systemImage: "plus.circle")
                     }
                 }
             }
-            .sheet(isPresented: $showingAddCategory) {
+            .sheet(isPresented: $showingAddCategory, onDismiss: {
+                // Re-enable edit mode when sheet is dismissed
+                editMode = .active
+                // Reset state
+                newCategoryName = ""
+                newCategoryEmoji = ""
+            }) {
                 AddCategorySheet(
                     newCategoryName: $newCategoryName,
                     newCategoryEmoji: $newCategoryEmoji,
                     onSave: {
                         addCustomCategory()
-                        // Reset state after save
-                        newCategoryName = ""
-                        newCategoryEmoji = ""
                     },
                     onDismiss: {
-                        // Reset state when sheet is dismissed
-                        newCategoryName = ""
-                        newCategoryEmoji = ""
+                        // Empty - parent sheet's onDismiss handles cleanup
                     }
                 )
             }
@@ -288,6 +328,19 @@ struct SettingsView: View {
     private func openNotificationSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
+        }
+    }
+    
+    private func openInSafari(url: URL) {
+        UIApplication.shared.open(url)
+    }
+    
+    private func shareApp() {
+        let items: [Any] = ["Help your relationships thrive with Catchup!", URL(string: "https://apps.apple.com/app/id0000000000")!]
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.windows.first?.rootViewController {
+            root.present(activityVC, animated: true)
         }
     }
     
@@ -465,7 +518,10 @@ struct AddCategorySheet: View {
                         
                         // Right side: Blue emoji button (always visible) - Apple keyboard emoji
                         Button {
-                            showingEmojiPicker = true
+                            // Defer emoji picker presentation to avoid conflicts
+                            DispatchQueue.main.async {
+                                showingEmojiPicker = true
+                            }
                         } label: {
                             Text("😊")
                                 .font(.title2)
@@ -499,7 +555,7 @@ struct AddCategorySheet: View {
             }
         }
         .presentationDetents([.medium])
-        .interactiveDismissDisabled(false)
+        .interactiveDismissDisabled(true) // Prevent swipe-to-dismiss, must use Cancel/Add buttons
     }
 }
 

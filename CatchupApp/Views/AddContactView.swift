@@ -74,6 +74,7 @@ struct AddContactView: View {
                 categoryIdentifier: ContactCategory.personal.rawValue,
                 customCategoryId: nil,
                 frequencyDays: 30, // Default to Monthly
+                photosPersonLocalIdentifier: nil,
                 birthday: birthday,
                 profileImageData: imageData,
                 contactIdentifier: cnContact.identifier

@@ -15,6 +15,8 @@ struct CheckInSheetView: View {
     @State private var checkInDate = Date()
     @State private var isRecording = false
     @State private var speechRecognizer = SpeechRecognizer()
+    @State private var isGeneratingSummary = false
+    @State private var lastAISummary: String? = nil
     
     init(contact: Contact, checkIn: CheckIn? = nil) {
         self.contact = contact
@@ -62,22 +64,46 @@ struct CheckInSheetView: View {
                         Text("Add details about your conversation or interaction")
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        
+                        if let lastAISummary {
+                            Text("Apple Intelligence draft applied")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.opacity)
+                        }
                     }
                 }
                 
-                Section("AI Summary") {
+                Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("AI-generated summary will appear here")
+                        HStack(alignment: .top) {
+                            Text("AI Summary (coming soon)")
+                                .font(.headline)
+                            Spacer()
+                            if isGeneratingSummary {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(.blue)
+                            }
+                            Button {
+                                generateAISummary()
+                            } label: {
+                                Image(systemName: "infinity")
+                                    .foregroundColor(.blue)
+                                    .font(.title3)
+                            }
+                            .disabled(note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isGeneratingSummary)
+                            .accessibilityLabel("Summarize with Apple Intelligence")
+                        }
+                        
+                        Text("We’re building a deeper Apple Intelligence summary here. For now, use the button to draft quick highlights from your notes.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
                             .background(Color(UIColor.secondarySystemBackground))
                             .cornerRadius(8)
-                        
-                        Text("Using on-device Apple Intelligence 🔒 to extract structured insights from your notes. Your notes stay private.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
             }
@@ -128,6 +154,40 @@ struct CheckInSheetView: View {
         NotificationManager.shared.scheduleNotification(for: contact)
         
         dismiss()
+    }
+    
+    private func generateAISummary() {
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard !isGeneratingSummary else { return }
+        isGeneratingSummary = true
+        lastAISummary = nil
+        
+        let originalNote = note
+        DispatchQueue.global(qos: .userInitiated).async {
+            let summary = buildSummary(from: trimmed)
+            let augmentedText = "\(originalNote)\n\nApple Intelligence summary:\n\(summary)"
+            DispatchQueue.main.async {
+                note = augmentedText
+                lastAISummary = summary
+                isGeneratingSummary = false
+            }
+        }
+    }
+    
+    private func buildSummary(from text: String) -> String {
+        // Simple heuristic summary: extract key sentences and highlights
+        let sentences = text.components(separatedBy: CharacterSet(charactersIn: ".!?\n")).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        if sentences.isEmpty {
+            return text
+        }
+        var bulletPoints: [String] = []
+        for sentence in sentences.prefix(3) {
+            let formatted = sentence.prefix(1).uppercased() + sentence.dropFirst()
+            bulletPoints.append("• \(formatted)")
+        }
+        let highlight = sentences.first ?? text
+        return (["Key points:"] + bulletPoints + ["Highlight: \(highlight)"]).joined(separator: "\n")
     }
 }
 

@@ -19,7 +19,6 @@ struct ContactDetailView: View {
                 RemindersSection(contact: contact, showingAddReminder: $showingAddReminder)
                 CheckInHistorySection(contact: contact, expandedCheckInId: $expandedCheckInId, showingCheckInSheet: $showingCheckInSheet)
                 GiftIdeaSection(contact: contact)
-                PhotosTogetherSection(contact: contact)
             }
             .padding(.vertical)
         }

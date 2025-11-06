@@ -7,6 +7,7 @@ struct ContentView: View {
     @Query private var checkIns: [CheckIn]
     @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
     @ObservedObject private var categoryManager = CategoryManager.shared
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showingAddContact = false
     @State private var searchText = ""
     @State private var selectedCategoryIdentifier: String? // For built-in categories
@@ -14,6 +15,7 @@ struct ContentView: View {
     @State private var showingOverdueOnly = false
     @State private var showingRecentCatchupsOnly = false
     @State private var sortOption: SortOption = .name
+    @State private var showingOnboarding = false
     
     var filteredContacts: [Contact] {
         var filtered = contacts
@@ -269,6 +271,17 @@ struct ContentView: View {
             .sheet(isPresented: $showingAddContact) {
                 AddContactView()
             }
+            .onAppear {
+                if !hasSeenOnboarding {
+                    showingOnboarding = true
+                }
+            }
+            .fullScreenCover(isPresented: $showingOnboarding) {
+                OnboardingView {
+                    hasSeenOnboarding = true
+                    showingOnboarding = false
+                }
+            }
         }
     }
     
@@ -291,6 +304,126 @@ enum SortOption: String, CaseIterable {
         case .overdue: return "exclamationmark.circle"
         case .recentCheckIn: return "clock"
         }
+    }
+}
+
+struct OnboardingView: View {
+    let onContinue: () -> Void
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.15), Color.purple.opacity(0.1)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 24) {
+                    VStack(spacing: 12) {
+                        Text("Catchup")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                        Text("Stay connected with the people who matter")
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                    }
+                    .padding(.top, 32)
+                    
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            introCard(
+                                title: "Why Catchup?",
+                                description: "Busy schedule? Losing touch with friends and connections over time? Catchup gives you a simple reminder system so important relationships never slip through the cracks."
+                            )
+                            
+                            OnboardingSection(
+                                icon: "person.badge.plus",
+                                title: "Add your contacts",
+                                message: "Start with just a few people—import them from your phone and grow your list whenever you're ready."
+                            )
+                            
+                            OnboardingSection(
+                                icon: "slider.horizontal.3",
+                                title: "Edit the details",
+                                message: "Choose the right category, set how often you want to catch up, and customize reminders that fit your rhythm."
+                            )
+                            
+                            OnboardingSection(
+                                icon: "doc.text.magnifyingglass",
+                                title: "Record your catchups",
+                                message: "Better than scattered notes or voice memos—log what stood out and keep it private on your phone."
+                            )
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
+                    }
+                    
+                    Button(action: onContinue) {
+                        Text("Get started")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(16)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 32)
+                }
+            }
+        }
+    }
+    
+    private func introCard(title: String, description: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            Text(description)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(.thinMaterial)
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.05), radius: 12, x: 0, y: 6)
+    }
+}
+
+private struct OnboardingSection: View {
+    let icon: String
+    let title: String
+    let message: String
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(.blue)
+                .frame(width: 36, height: 36)
+                .background(Color.blue.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.headline)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color(UIColor.secondarySystemBackground))
+        .cornerRadius(18)
+        .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
     }
 }
 
