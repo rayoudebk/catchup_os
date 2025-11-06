@@ -94,7 +94,7 @@ struct ExpandableCheckInRowView: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            CheckInTypeIcon(checkInType: checkIn.checkInType)
+            CheckInIcon()
             CheckInContent(checkIn: checkIn, isExpanded: isExpanded, onTap: onTap)
             
             Button(action: onDelete) {
@@ -107,29 +107,16 @@ struct ExpandableCheckInRowView: View {
     }
 }
 
-struct CheckInTypeIcon: View {
-    let checkInType: CheckInType
-    
+struct CheckInIcon: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(typeColor.opacity(0.2))
+                .fill(Color.blue.opacity(0.2))
                 .frame(width: 40, height: 40)
             
-            Image(systemName: checkInType.icon)
+            Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 16))
-                .foregroundColor(typeColor)
-        }
-    }
-    
-    private var typeColor: Color {
-        switch checkInType {
-        case .general: return .blue
-        case .call: return .green
-        case .text: return .purple
-        case .meeting: return .orange
-        case .video: return .pink
-        case .email: return .cyan
+                .foregroundColor(.blue)
         }
     }
 }
@@ -143,7 +130,7 @@ struct CheckInContent: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(checkIn.checkInType.rawValue)
+                    Text(checkIn.title)
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundColor(.primary)

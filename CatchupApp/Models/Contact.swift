@@ -18,6 +18,9 @@ final class Contact {
     var reminders: [String] // Checklist items
     var giftIdea: String // Next gift idea
     var photosPersonLocalIdentifier: String? // Link to Photos app person
+    var birthday: Date? // Birthday from contacts
+    var profileImageData: Data? // Profile image from contacts
+    var contactIdentifier: String? // Original CNContact identifier
     
     @Relationship(deleteRule: .cascade, inverse: \CheckIn.contact)
     var checkIns: [CheckIn]?
@@ -27,14 +30,17 @@ final class Contact {
         phoneNumber: String? = nil,
         email: String? = nil,
         category: ContactCategory = .personal,
-        frequencyDays: Int = 14,
+        frequencyDays: Int = 30, // Default to monthly
         preferredDayOfWeek: Int? = nil,
         preferredHour: Int? = nil,
         notes: String = "",
         isFavorite: Bool = false,
         reminders: [String] = [],
         giftIdea: String = "",
-        photosPersonLocalIdentifier: String? = nil
+        photosPersonLocalIdentifier: String? = nil,
+        birthday: Date? = nil,
+        profileImageData: Data? = nil,
+        contactIdentifier: String? = nil
     ) {
         self.id = UUID()
         self.name = name
@@ -49,6 +55,9 @@ final class Contact {
         self.reminders = reminders
         self.giftIdea = giftIdea
         self.photosPersonLocalIdentifier = photosPersonLocalIdentifier
+        self.birthday = birthday
+        self.profileImageData = profileImageData
+        self.contactIdentifier = contactIdentifier
         self.createdAt = Date()
         self.checkIns = []
     }

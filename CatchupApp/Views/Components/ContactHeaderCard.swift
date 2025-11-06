@@ -35,14 +35,27 @@ struct ContactAvatar: View {
     
     var body: some View {
         ZStack {
-            Circle()
-                .fill(contact.isOverdue ? Color.red.opacity(0.2) : Color.blue.opacity(0.2))
-                .frame(width: 80, height: 80)
-            
-            Text(contact.name.prefix(1).uppercased())
-                .font(.system(size: 36))
-                .fontWeight(.bold)
-                .foregroundColor(contact.isOverdue ? .red : .blue)
+            if let imageData = contact.profileImageData,
+               let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(contact.isOverdue ? Color.red : Color.blue, lineWidth: 2)
+                    )
+            } else {
+                Circle()
+                    .fill(contact.isOverdue ? Color.red.opacity(0.2) : Color.blue.opacity(0.2))
+                    .frame(width: 80, height: 80)
+                
+                Text(contact.name.prefix(1).uppercased())
+                    .font(.system(size: 36))
+                    .fontWeight(.bold)
+                    .foregroundColor(contact.isOverdue ? .red : .blue)
+            }
         }
     }
 }
@@ -70,7 +83,23 @@ struct ContactNameSection: View {
                     .font(.subheadline)
             }
             .foregroundColor(.secondary)
+            
+            if let birthday = contact.birthday {
+                HStack(spacing: 4) {
+                    Image(systemName: "gift.fill")
+                        .font(.caption2)
+                    Text(birthdayString(birthday))
+                        .font(.caption)
+                }
+                .foregroundColor(.secondary)
+            }
         }
+    }
+    
+    private func birthdayString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 }
 

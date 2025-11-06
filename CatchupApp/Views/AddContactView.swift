@@ -1,94 +1,44 @@
 import SwiftUI
 import SwiftData
+import Contacts
+import ContactsUI
 
 struct AddContactView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var name = ""
-    @State private var phoneNumber = ""
-    @State private var email = ""
-    @State private var category: ContactCategory = .personal
-    @State private var frequencyDays = 14
-    @State private var preferredDayOfWeek: Int? = nil
-    @State private var preferredHour: Int? = 9
-    @State private var notes = ""
-    @State private var isFavorite = false
-    
-    let frequencyOptions = [7, 14, 21, 30, 60, 90, 180, 365]
-    let daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    @State private var showingContactsPicker = false
     
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Basic Information") {
-                    TextField("Name", text: $name)
-                    
-                    TextField("Phone Number", text: $phoneNumber)
-                        .keyboardType(.phonePad)
-                    
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                }
+            VStack(spacing: 20) {
+                Image(systemName: "person.crop.circle.badge.plus")
+                    .font(.system(size: 80))
+                    .foregroundColor(.blue)
                 
-                Section("Category") {
-                    Picker("Category", selection: $category) {
-                        ForEach(ContactCategory.allCases, id: \.self) { cat in
-                            Text(cat.rawValue)
-                                .tag(cat)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    
-                    HStack {
-                        Image(systemName: category.icon)
-                            .foregroundColor(.blue)
-                        Text(category.rawValue)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
+                Text("Add Contacts")
+                    .font(.title)
+                    .fontWeight(.bold)
                 
-                Section("Check-in Frequency") {
-                    Picker("Check in every", selection: $frequencyDays) {
-                        ForEach(frequencyOptions, id: \.self) { days in
-                            Text("\(frequencyLabel(for: days))")
-                                .tag(days)
-                        }
-                    }
-                    
-                    Picker("Preferred Day", selection: $preferredDayOfWeek) {
-                        Text("Any Day").tag(nil as Int?)
-                        ForEach(0..<7) { index in
-                            Text(daysOfWeek[index]).tag(index + 1 as Int?)
-                        }
-                    }
-                    
-                    Picker("Preferred Time", selection: $preferredHour) {
-                        Text("Any Time").tag(nil as Int?)
-                        ForEach(0..<24) { hour in
-                            Text(formatHour(hour)).tag(hour as Int?)
-                        }
-                    }
-                    
-                    Text(buildReminderText())
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text("Select contacts from your phone to start tracking check-ins")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
                 
-                Section("Notes") {
-                    TextEditor(text: $notes)
-                        .frame(height: 100)
+                Button {
+                    showingContactsPicker = true
+                } label: {
+                    Label("Select from Contacts", systemImage: "person.2.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                 }
-                
-                Section {
-                    Toggle(isOn: $isFavorite) {
-                        Label("Mark as Favorite", systemImage: "star.fill")
-                    }
-                }
+                .padding(.horizontal)
             }
-            .navigationTitle("Add Contact")
+            .navigationTitle("Add Contacts")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -96,68 +46,98 @@ struct AddContactView: View {
                         dismiss()
                     }
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
-                        addContact()
-                    }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .sheet(isPresented: $showingContactsPicker) {
+                ContactPickerView { cnContacts in
+                    importContacts(cnContacts)
                 }
             }
         }
     }
     
-    private func addContact() {
-        let contact = Contact(
-            name: name.trimmingCharacters(in: .whitespaces),
-            phoneNumber: phoneNumber.isEmpty ? nil : phoneNumber,
-            email: email.isEmpty ? nil : email,
-            category: category,
-            frequencyDays: frequencyDays,
-            preferredDayOfWeek: preferredDayOfWeek,
-            preferredHour: preferredHour,
-            notes: notes,
-            isFavorite: isFavorite
-        )
-        
-        modelContext.insert(contact)
-        
-        // Schedule notification
-        NotificationManager.shared.scheduleNotification(for: contact)
+    private func importContacts(_ cnContacts: [CNContact]) {
+        for cnContact in cnContacts {
+            // Extract contact info
+            let name = "\(cnContact.givenName) \(cnContact.familyName)".trimmingCharacters(in: .whitespaces)
+            let phoneNumber = cnContact.phoneNumbers.first?.value.stringValue
+            let email = cnContact.emailAddresses.first?.value as String?
+            let birthday = cnContact.birthday?.date
+            
+            // Get profile image
+            var imageData: Data? = nil
+            if let imageData = cnContact.imageData {
+                imageData = imageData
+            } else if let thumbnailData = cnContact.thumbnailImageData {
+                imageData = thumbnailData
+            }
+            
+            // Create contact with defaults: Personal category, Monthly frequency
+            let contact = Contact(
+                name: name.isEmpty ? "Unknown" : name,
+                phoneNumber: phoneNumber,
+                email: email,
+                category: .personal, // Default to Personal
+                frequencyDays: 30, // Default to Monthly
+                birthday: birthday,
+                profileImageData: imageData,
+                contactIdentifier: cnContact.identifier
+            )
+            
+            modelContext.insert(contact)
+        }
         
         dismiss()
     }
+}
+
+// ContactPicker wrapper for UIKit CNContactPickerViewController
+struct ContactPickerView: UIViewControllerRepresentable {
+    let onSelect: ([CNContact]) -> Void
     
-    private func frequencyLabel(for days: Int) -> String {
-        switch days {
-        case 7: return "Week"
-        case 14: return "2 Weeks"
-        case 21: return "3 Weeks"
-        case 30: return "Month"
-        case 60: return "2 Months"
-        case 90: return "3 Months"
-        case 180: return "6 Months"
-        case 365: return "Year"
-        default: return "\(days) Days"
-        }
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
     }
     
-    private func formatHour(_ hour: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
-        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
-        return formatter.string(from: date)
+    func makeUIViewController(context: Context) -> CNContactPickerViewController {
+        let picker = CNContactPickerViewController()
+        picker.delegate = context.coordinator
+        
+        // Configure what properties to fetch
+        picker.displayedPropertyKeys = [
+            CNContactGivenNameKey,
+            CNContactFamilyNameKey,
+            CNContactPhoneNumbersKey,
+            CNContactEmailAddressesKey,
+            CNContactBirthdayKey,
+            CNContactImageDataKey,
+            CNContactThumbnailImageDataKey
+        ]
+        
+        return picker
     }
     
-    private func buildReminderText() -> String {
-        var text = "You'll be reminded to reach out every \(frequencyLabel(for: frequencyDays).lowercased())"
-        if let day = preferredDayOfWeek {
-            text += " on \(daysOfWeek[day - 1])s"
+    func updateUIViewController(_ uiViewController: CNContactPickerViewController, context: Context) {}
+    
+    class Coordinator: NSObject, CNContactPickerDelegate {
+        var parent: ContactPickerView
+        
+        init(_ parent: ContactPickerView) {
+            self.parent = parent
         }
-        if let hour = preferredHour {
-            text += " at \(formatHour(hour))"
+        
+        func contactPicker(_ picker: CNContactPickerViewController, didSelect contacts: [CNContact]) {
+            parent.onSelect(contacts)
         }
-        return text
+        
+        func contactPickerDidCancel(_ picker: CNContactPickerViewController) {
+            // User cancelled
+        }
     }
 }
 
+// Extension to convert CNBirthday to Date
+extension DateComponents {
+    var date: Date? {
+        Calendar.current.date(from: self)
+    }
+}

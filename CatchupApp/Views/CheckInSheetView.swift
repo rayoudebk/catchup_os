@@ -7,21 +7,19 @@ struct CheckInSheetView: View {
     
     let contact: Contact
     
-    @State private var checkInType: CheckInType = .general
+    @State private var title = "Check-in"
     @State private var note = ""
     @State private var checkInDate = Date()
     
     var body: some View {
         NavigationStack {
             Form {
-                Section("Check-in Type") {
-                    Picker("Type", selection: $checkInType) {
-                        ForEach(CheckInType.allCases, id: \.self) { type in
-                            Label(type.rawValue, systemImage: type.icon)
-                                .tag(type)
+                Section("Title") {
+                    TextField("Check-in title", text: $title)
+                        .placeholder(when: title.isEmpty) {
+                            Text("e.g., Coffee chat, Phone call, Lunch")
+                                .foregroundColor(.secondary)
                         }
-                    }
-                    .pickerStyle(.menu)
                 }
                 
                 Section("Date & Time") {
@@ -70,7 +68,7 @@ struct CheckInSheetView: View {
         let checkIn = CheckIn(
             date: checkInDate,
             note: note,
-            checkInType: checkInType,
+            title: title.isEmpty ? "Check-in" : title,
             contact: contact
         )
         
@@ -83,6 +81,20 @@ struct CheckInSheetView: View {
         NotificationManager.shared.scheduleNotification(for: contact)
         
         dismiss()
+    }
+}
+
+// Helper extension for placeholder
+extension View {
+    func placeholder<Content: View>(
+        when shouldShow: Bool,
+        alignment: Alignment = .leading,
+        @ViewBuilder placeholder: () -> Content) -> some View {
+
+        ZStack(alignment: alignment) {
+            placeholder().opacity(shouldShow ? 1 : 0)
+            self
+        }
     }
 }
 

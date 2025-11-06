@@ -57,6 +57,38 @@ struct EditContactView: View {
                         .foregroundColor(.secondary)
                 }
                 
+                Section("Preferred Check-in Time") {
+                    Picker("Preferred Day", selection: Binding(
+                        get: { contact.preferredDayOfWeek ?? 0 },
+                        set: { contact.preferredDayOfWeek = $0 == 0 ? nil : $0 }
+                    )) {
+                        Text("Any Day").tag(0)
+                        Text("Sunday").tag(1)
+                        Text("Monday").tag(2)
+                        Text("Tuesday").tag(3)
+                        Text("Wednesday").tag(4)
+                        Text("Thursday").tag(5)
+                        Text("Friday").tag(6)
+                        Text("Saturday").tag(7)
+                    }
+                    .pickerStyle(.menu)
+                    
+                    Picker("Preferred Time", selection: Binding(
+                        get: { contact.preferredHour ?? -1 },
+                        set: { contact.preferredHour = $0 == -1 ? nil : $0 }
+                    )) {
+                        Text("Any Time").tag(-1)
+                        ForEach(0..<24) { hour in
+                            Text(timeString(for: hour)).tag(hour)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    
+                    Text("Set your preferred day and time for check-in reminders")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
                 Section("Notes") {
                     TextEditor(text: $contact.notes)
                         .frame(height: 100)
@@ -101,6 +133,15 @@ struct EditContactView: View {
         case 365: return "Year"
         default: return "\(days) Days"
         }
+    }
+    
+    private func timeString(for hour: Int) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        if let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) {
+            return formatter.string(from: date)
+        }
+        return "\(hour):00"
     }
 }
 
