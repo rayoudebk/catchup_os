@@ -17,6 +17,55 @@ struct SettingsView: View {
     @State private var newCategoryName = ""
     @State private var newCategoryEmoji = "📁"
     
+    struct CategoryItem: Identifiable {
+        let id: String
+        let name: String
+        let icon: String
+        let emoji: String
+        let isLocked: Bool
+        let builtInCategory: ContactCategory?
+        let customCategory: CustomCategory?
+        let order: Int
+    }
+    
+    var allCategories: [CategoryItem] {
+        var items: [CategoryItem] = []
+        
+        // Add built-in categories
+        let enabledBuiltIn = categoryManager.enabledCategories
+        let order = categoryManager.categoryOrder
+        
+        for category in enabledBuiltIn {
+            let orderIndex = order.firstIndex(of: category.rawValue) ?? Int.max
+            items.append(CategoryItem(
+                id: category.rawValue,
+                name: category.rawValue,
+                icon: category.icon,
+                emoji: "",
+                isLocked: category == .personal,
+                builtInCategory: category,
+                customCategory: nil,
+                order: orderIndex
+            ))
+        }
+        
+        // Add custom categories
+        for customCat in customCategories {
+            items.append(CategoryItem(
+                id: customCat.id.uuidString,
+                name: customCat.name,
+                icon: customCat.icon,
+                emoji: customCat.emoji,
+                isLocked: false,
+                builtInCategory: nil,
+                customCategory: customCat,
+                order: customCat.order + 1000 // Place after built-in
+            ))
+        }
+        
+        return items.sorted { $0.order < $1.order }
+    }
+    
     var body: some View {
         List {
             Section {
@@ -77,44 +126,59 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                ForEach(categoryManager.enabledCategories, id: \.self) { category in
+                ForEach(allCategories, id: \.id) { categoryItem in
                     HStack {
-                        Image(systemName: category.icon)
-                            .foregroundColor(.blue)
-                            .frame(width: 24)
+                        // Drag handle
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
                         
-                        Text(category.rawValue)
+                        if let customCat = categoryItem.customCategory {
+                            Text(customCat.emoji)
+                                .font(.title3)
+                                .frame(width: 24)
+                        } else {
+                            Image(systemName: categoryItem.icon)
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                        }
+                        
+                        Text(categoryItem.name)
                         
                         Spacer()
                         
-                        if category == .personal {
+                        if categoryItem.isLocked {
                             Image(systemName: "lock.fill")
                                 .foregroundColor(.secondary)
                                 .font(.caption)
-                        } else {
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !categoryItem.isLocked {
                             Button(role: .destructive) {
-                                deleteCategory(category)
+                                if let customCat = categoryItem.customCategory {
+                                    deleteCustomCategory(customCat)
+                                } else if let builtInCategory = categoryItem.builtInCategory {
+                                    deleteCategory(builtInCategory)
+                                }
                             } label: {
-                                Image(systemName: "trash")
-                                    .foregroundColor(.red)
+                                Label("Delete", systemImage: "trash")
                             }
                         }
                     }
                 }
-                .onMove { source, destination in
-                    categoryManager.reorderCategories(from: source, to: destination)
-                }
+                .onMove(perform: reorderAllCategories)
                 
-                if categoryManager.enabledCategories.count + customCategories.count < 6 {
+                if allCategories.count < 6 {
                     Button {
+                        // Reset state synchronously before showing sheet
+                        newCategoryName = ""
+                        newCategoryEmoji = ""
                         showingAddCategory = true
                     } label: {
                         Label("Add Category", systemImage: "plus.circle")
                     }
                 }
-            }
-            .onChange(of: categoryManager.refreshTrigger) { _, _ in
-                // Trigger view refresh
             }
             .sheet(isPresented: $showingAddCategory) {
                 AddCategorySheet(
@@ -122,7 +186,14 @@ struct SettingsView: View {
                     newCategoryEmoji: $newCategoryEmoji,
                     onSave: {
                         addCustomCategory()
-                        showingAddCategory = false
+                        // Reset state after save
+                        newCategoryName = ""
+                        newCategoryEmoji = ""
+                    },
+                    onDismiss: {
+                        // Reset state when sheet is dismissed
+                        newCategoryName = ""
+                        newCategoryEmoji = ""
                     }
                 )
             }
@@ -231,7 +302,8 @@ struct SettingsView: View {
                 "name": contact.name,
                 "phoneNumber": contact.phoneNumber ?? "",
                 "email": contact.email ?? "",
-                "category": contact.category.rawValue,
+                "category": contact.categoryIdentifier,
+                "customCategoryId": contact.customCategoryId?.uuidString ?? "",
                 "frequencyDays": contact.frequencyDays,
                 "lastCheckInDate": contact.lastCheckInDate?.ISO8601Format() ?? "",
                 "notes": contact.notes,
@@ -281,8 +353,9 @@ struct SettingsView: View {
     private func deleteCategory(_ category: ContactCategory) {
         // Find all contacts with this category and change them to Personal
         for contact in contacts {
-            if contact.category == category {
-                contact.category = .personal
+            if contact.categoryIdentifier == category.rawValue && contact.customCategoryId == nil {
+                contact.categoryIdentifier = ContactCategory.personal.rawValue
+                contact.customCategoryId = nil
             }
         }
         
@@ -291,7 +364,7 @@ struct SettingsView: View {
     }
     
     private func addCustomCategory() {
-        let maxOrder = customCategories.map { $0.order }.max() ?? -1
+        let maxOrder = customCategories.map { $0.order }.max() ?? (categoryManager.enabledCategories.count - 1)
         let category = CustomCategory(
             name: newCategoryName,
             emoji: newCategoryEmoji,
@@ -300,13 +373,57 @@ struct SettingsView: View {
         )
         modelContext.insert(category)
         
-        // Add to category order
-        var order = categoryManager.categoryOrder
-        order.append(newCategoryName)
-        categoryManager.categoryOrder = order
+        // Save and trigger refresh
+        do {
+            try modelContext.save()
+            categoryManager.refreshTrigger = UUID()
+        } catch {
+            print("Error saving category: \(error)")
+        }
+    }
+    
+    private func deleteCustomCategory(_ category: CustomCategory) {
+        // Find all contacts with this custom category and change them to Personal
+        for contact in contacts {
+            if contact.customCategoryId == category.id {
+                contact.categoryIdentifier = ContactCategory.personal.rawValue
+                contact.customCategoryId = nil
+            }
+        }
         
-        newCategoryName = ""
-        newCategoryEmoji = "📁"
+        modelContext.delete(category)
+        try? modelContext.save()
+        categoryManager.refreshTrigger = UUID()
+    }
+    
+    private func reorderAllCategories(from source: IndexSet, to destination: Int) {
+        var reordered = allCategories
+        reordered.move(fromOffsets: source, toOffset: destination)
+        
+        // Update order for built-in categories
+        var builtInOrder: [String] = []
+        
+        for (index, item) in reordered.enumerated() {
+            if let builtIn = item.builtInCategory {
+                builtInOrder.append(builtIn.rawValue)
+            } else if let custom = item.customCategory {
+                // Update custom category order
+                custom.order = index
+            }
+        }
+        
+        // Update built-in category order
+        categoryManager.categoryOrder = builtInOrder
+        
+        // Save custom category orders
+        do {
+            try modelContext.save()
+        } catch {
+            print("Error saving category order: \(error)")
+        }
+        
+        // Trigger refresh
+        categoryManager.refreshTrigger = UUID()
     }
 }
 
@@ -314,15 +431,48 @@ struct AddCategorySheet: View {
     @Binding var newCategoryName: String
     @Binding var newCategoryEmoji: String
     let onSave: () -> Void
+    let onDismiss: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: Field?
+    @State private var showingEmojiPicker = false
+    
+    enum Field {
+        case name, emoji
+    }
     
     var body: some View {
         NavigationStack {
             Form {
                 Section("Category Details") {
                     TextField("Category Name", text: $newCategoryName)
-                    TextField("Emoji", text: $newCategoryEmoji)
-                        .textInputAutocapitalization(.never)
+                        .focused($focusedField, equals: .name)
+                        .submitLabel(.next)
+                    
+                    HStack {
+                        // Left side: Display selected emoji (empty initially, no background)
+                        if !newCategoryEmoji.isEmpty {
+                            Text(newCategoryEmoji)
+                                .font(.title2)
+                                .frame(width: 44, height: 44)
+                        } else {
+                            Spacer()
+                                .frame(width: 44, height: 44)
+                        }
+                        
+                        Spacer()
+                        
+                        // Right side: Blue emoji button (always visible) - Apple keyboard emoji
+                        Button {
+                            showingEmojiPicker = true
+                        } label: {
+                            Text("😊")
+                                .font(.title2)
+                                .frame(width: 44, height: 44)
+                                .background(Color.blue.opacity(0.1))
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                 }
             }
             .navigationTitle("Add Category")
@@ -330,19 +480,79 @@ struct AddCategorySheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        newCategoryName = ""
-                        newCategoryEmoji = "📁"
+                        onDismiss()
                         dismiss()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
                         onSave()
+                        dismiss()
                     }
-                    .disabled(newCategoryName.isEmpty)
+                    .disabled(newCategoryName.isEmpty || newCategoryEmoji.isEmpty)
+                }
+            }
+            .sheet(isPresented: $showingEmojiPicker) {
+                EmojiPickerView(selectedEmoji: $newCategoryEmoji)
+            }
+        }
+        .presentationDetents([.medium])
+        .interactiveDismissDisabled(false)
+    }
+}
+
+struct EmojiPickerView: View {
+    @Binding var selectedEmoji: String
+    @Environment(\.dismiss) private var dismiss
+    
+    let emojiCategories: [(String, [String])] = [
+        ("Smileys", ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "😚", "😙"]),
+        ("Objects", ["📁", "📂", "📄", "📃", "📑", "📊", "📈", "📉", "🗂️", "📅", "📆", "🗒️", "📋", "📇", "📌", "📍", "📎", "🖇️", "📏", "📐"]),
+        ("Symbols", ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "☮️"]),
+        ("Flags", ["🏳️", "🏴", "🏁", "🚩", "🏳️‍🌈", "🏳️‍⚧️", "🇺🇸", "🇬🇧", "🇫🇷", "🇩🇪", "🇯🇵", "🇨🇳", "🇮🇳", "🇧🇷", "🇷🇺", "🇰🇷", "🇮🇹", "🇪🇸", "🇨🇦", "🇦🇺"])
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    ForEach(emojiCategories, id: \.0) { category in
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(category.0)
+                                .font(.headline)
+                                .padding(.horizontal)
+                            
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 12) {
+                                ForEach(category.1, id: \.self) { emoji in
+                                    Button {
+                                        selectedEmoji = emoji
+                                        dismiss()
+                                    } label: {
+                                        Text(emoji)
+                                            .font(.system(size: 32))
+                                            .frame(width: 44, height: 44)
+                                            .background(selectedEmoji == emoji ? Color.blue.opacity(0.2) : Color.clear)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                }
+                .padding(.vertical)
+            }
+            .navigationTitle("Choose Emoji")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
                 }
             }
         }
+        .presentationDetents([.large])
     }
 }
 
@@ -356,4 +566,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+
+
+
 

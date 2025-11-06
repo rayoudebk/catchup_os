@@ -71,7 +71,8 @@ struct AddContactView: View {
                 name: name.isEmpty ? "Unknown" : name,
                 phoneNumber: phoneNumber,
                 email: email,
-                category: .personal, // Default to Personal
+                categoryIdentifier: ContactCategory.personal.rawValue,
+                customCategoryId: nil,
                 frequencyDays: 30, // Default to Monthly
                 birthday: birthday,
                 profileImageData: imageData,

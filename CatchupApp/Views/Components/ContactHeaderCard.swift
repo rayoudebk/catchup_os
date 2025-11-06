@@ -1,7 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct ContactHeaderCard: View {
     @Bindable var contact: Contact
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
+    
+    var categoryInfo: CategoryInfo {
+        contact.categoryInfo(customCategories: customCategories)
+    }
     
     var body: some View {
         // Box 1: Profile Info (Avatar + Name + Category + Birthday) - Full width
@@ -24,9 +30,14 @@ struct ContactHeaderCard: View {
                 HStack(spacing: 12) {
                     // Category
                     HStack(spacing: 4) {
-                        Image(systemName: contact.category.icon)
-                            .font(.caption)
-                        Text(contact.category.rawValue)
+                        if !categoryInfo.emoji.isEmpty {
+                            Text(categoryInfo.emoji)
+                                .font(.caption)
+                        } else {
+                            Image(systemName: categoryInfo.icon)
+                                .font(.caption)
+                        }
+                        Text(categoryInfo.name)
                             .font(.subheadline)
                     }
                     

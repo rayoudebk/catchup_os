@@ -5,10 +5,12 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Contact.name) private var contacts: [Contact]
     @Query private var checkIns: [CheckIn]
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
     @ObservedObject private var categoryManager = CategoryManager.shared
     @State private var showingAddContact = false
     @State private var searchText = ""
-    @State private var selectedCategory: ContactCategory?
+    @State private var selectedCategoryIdentifier: String? // For built-in categories
+    @State private var selectedCustomCategoryId: UUID? // For custom categories
     @State private var showingOverdueOnly = false
     @State private var showingRecentCatchupsOnly = false
     @State private var sortOption: SortOption = .name
@@ -40,8 +42,10 @@ struct ContentView: View {
         }
         
         // Filter by category
-        if let category = selectedCategory {
-            filtered = filtered.filter { $0.category == category }
+        if let categoryId = selectedCategoryIdentifier {
+            filtered = filtered.filter { $0.categoryIdentifier == categoryId && $0.customCategoryId == nil }
+        } else if let customId = selectedCustomCategoryId {
+            filtered = filtered.filter { $0.customCategoryId == customId }
         }
         
         // Sort: Favorites first, then by selected sort option
@@ -118,13 +122,15 @@ struct ContentView: View {
                     showingRecentCatchupsOnly: $showingRecentCatchupsOnly,
                     onOverdueToggle: {
                         if showingOverdueOnly {
-                            selectedCategory = nil
+                            selectedCategoryIdentifier = nil
+                            selectedCustomCategoryId = nil
                             showingRecentCatchupsOnly = false
                         }
                     },
                     onRecentCatchupsToggle: {
                         if showingRecentCatchupsOnly {
-                            selectedCategory = nil
+                            selectedCategoryIdentifier = nil
+                            selectedCustomCategoryId = nil
                             showingOverdueOnly = false
                         }
                     }
@@ -136,10 +142,11 @@ struct ContentView: View {
                     HStack(spacing: 12) {
                         CategoryFilterButton(
                             title: "All",
-                            isSelected: selectedCategory == nil,
+                            isSelected: selectedCategoryIdentifier == nil && selectedCustomCategoryId == nil,
                             count: contacts.count
                         ) {
-                            selectedCategory = nil
+                            selectedCategoryIdentifier = nil
+                            selectedCustomCategoryId = nil
                             showingOverdueOnly = false
                             showingRecentCatchupsOnly = false
                         }
@@ -148,10 +155,26 @@ struct ContentView: View {
                             CategoryFilterButton(
                                 title: category.rawValue,
                                 icon: category.icon,
-                                isSelected: selectedCategory == category,
-                                count: contacts.filter { $0.category == category }.count
+                                isSelected: selectedCategoryIdentifier == category.rawValue,
+                                count: contacts.filter { $0.categoryIdentifier == category.rawValue && $0.customCategoryId == nil }.count
                             ) {
-                                selectedCategory = category
+                                selectedCategoryIdentifier = category.rawValue
+                                selectedCustomCategoryId = nil
+                                showingOverdueOnly = false
+                                showingRecentCatchupsOnly = false
+                            }
+                        }
+                        
+                        // Add custom categories
+                        ForEach(customCategories, id: \.id) { customCat in
+                            CategoryFilterButton(
+                                title: customCat.name,
+                                emoji: customCat.emoji,
+                                isSelected: selectedCustomCategoryId == customCat.id,
+                                count: contacts.filter { $0.customCategoryId == customCat.id }.count
+                            ) {
+                                selectedCustomCategoryId = customCat.id
+                                selectedCategoryIdentifier = nil
                                 showingOverdueOnly = false
                                 showingRecentCatchupsOnly = false
                             }

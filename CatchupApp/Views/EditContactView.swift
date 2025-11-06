@@ -1,8 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct EditContactView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
+    @ObservedObject private var categoryManager = CategoryManager.shared
     @Bindable var contact: Contact
+    @State private var showingCategoryPicker = false
     
     let frequencyOptions = [7, 14, 21, 30, 60, 90, 180, 365]
     
@@ -31,13 +36,45 @@ struct EditContactView: View {
                         Label("Mark as Favorite", systemImage: "star.fill")
                     }
                     
-                    Picker("Category", selection: $contact.category) {
-                        ForEach(CategoryManager.shared.enabledCategories, id: \.self) { cat in
-                            Text(cat.rawValue)
-                                .tag(cat)
+                    Button {
+                        showingCategoryPicker = true
+                    } label: {
+                        HStack {
+                            Text("Category")
+                            
+                            Spacer()
+                            
+                            // Display current selection
+                            if let customId = contact.customCategoryId,
+                               let custom = customCategories.first(where: { $0.id == customId }) {
+                                HStack(spacing: 4) {
+                                    Text(custom.emoji)
+                                    Text(custom.name)
+                                        .foregroundColor(.blue)
+                                }
+                            } else if let builtIn = ContactCategory(rawValue: contact.categoryIdentifier) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: builtIn.icon)
+                                        .foregroundColor(.blue)
+                                        .font(.subheadline)
+                                    Text(builtIn.rawValue)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            
+                            Image(systemName: "chevron.up.chevron.down")
+                                .foregroundColor(.blue)
+                                .font(.caption)
                         }
+                        .contentShape(Rectangle())
                     }
-                    .pickerStyle(.menu)
+                    .sheet(isPresented: $showingCategoryPicker) {
+                        CategoryPickerSheet(
+                            contact: contact,
+                            customCategories: customCategories,
+                            categoryManager: categoryManager
+                        )
+                    }
                     
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -156,6 +193,72 @@ struct EditContactView: View {
             return formatter.string(from: date)
         }
         return "\(hour):00"
+    }
+}
+
+struct CategoryPickerSheet: View {
+    @Bindable var contact: Contact
+    let customCategories: [CustomCategory]
+    let categoryManager: CategoryManager
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                // Built-in categories
+                ForEach(categoryManager.enabledCategories, id: \.self) { cat in
+                    Button {
+                        contact.categoryIdentifier = cat.rawValue
+                        contact.customCategoryId = nil
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: cat.icon)
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text(cat.rawValue)
+                                .foregroundColor(.blue)
+                            Spacer()
+                            if contact.categoryIdentifier == cat.rawValue && contact.customCategoryId == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+                
+                // Custom categories
+                ForEach(customCategories, id: \.id) { customCat in
+                    Button {
+                        contact.categoryIdentifier = customCat.name
+                        contact.customCategoryId = customCat.id
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text(customCat.emoji)
+                                .frame(width: 24, alignment: .leading)
+                            Text(customCat.name)
+                                .foregroundColor(.blue)
+                            Spacer()
+                            if contact.customCategoryId == customCat.id {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Select Category")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

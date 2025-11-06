@@ -1,7 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct ContactRowView: View {
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
     let contact: Contact
+    
+    var categoryInfo: CategoryInfo {
+        contact.categoryInfo(customCategories: customCategories)
+    }
     
     var body: some View {
         HStack(spacing: 16) {
@@ -33,11 +39,17 @@ struct ContactRowView: View {
                 }
                 
                 HStack(spacing: 8) {
-                    Image(systemName: contact.category.icon)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if !categoryInfo.emoji.isEmpty {
+                        Text(categoryInfo.emoji)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Image(systemName: categoryInfo.icon)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
-                    Text(contact.category.rawValue)
+                    Text(categoryInfo.name)
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
