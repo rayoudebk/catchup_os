@@ -6,7 +6,7 @@ class CategoryManager: ObservableObject {
     static let shared = CategoryManager()
     
     private let disabledCategoriesKey = "disabledCategories"
-    private let categoryOrderKey = "categoryOrder"
+    private let builtInCategoryOrderKey = "builtInCategoryOrder" // Dictionary: category name -> order
     
     private init() {}
     
@@ -22,25 +22,48 @@ class CategoryManager: ObservableObject {
         }
     }
     
-    var categoryOrder: [String] {
+    // Store order for built-in categories as dictionary: category name -> order integer
+    var builtInCategoryOrder: [String: Int] {
         get {
-            UserDefaults.standard.stringArray(forKey: categoryOrderKey) ?? ContactCategory.allCases.map { $0.rawValue }
+            if let data = UserDefaults.standard.data(forKey: builtInCategoryOrderKey),
+               let dict = try? JSONDecoder().decode([String: Int].self, from: data) {
+                return dict
+            }
+            // Default order: assign sequential values starting from 0
+            var defaultOrder: [String: Int] = [:]
+            for (index, category) in ContactCategory.allCases.enumerated() {
+                defaultOrder[category.rawValue] = index
+            }
+            return defaultOrder
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: categoryOrderKey)
-            refreshTrigger = UUID()
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: builtInCategoryOrderKey)
+                refreshTrigger = UUID()
+            }
         }
+    }
+    
+    // Get order for a built-in category
+    func getOrder(for category: ContactCategory) -> Int {
+        return builtInCategoryOrder[category.rawValue] ?? Int.max
+    }
+    
+    // Set order for a built-in category
+    func setOrder(_ order: Int, for category: ContactCategory) {
+        var orderDict = builtInCategoryOrder
+        orderDict[category.rawValue] = order
+        builtInCategoryOrder = orderDict
     }
     
     var enabledCategories: [ContactCategory] {
         let enabled = ContactCategory.allCases.filter { !disabledCategories.contains($0.rawValue) }
         
-        // Sort by custom order if available
-        let order = categoryOrder
+        // Sort by order value
         return enabled.sorted { cat1, cat2 in
-            let index1 = order.firstIndex(of: cat1.rawValue) ?? Int.max
-            let index2 = order.firstIndex(of: cat2.rawValue) ?? Int.max
-            return index1 < index2
+            let order1 = getOrder(for: cat1)
+            let order2 = getOrder(for: cat2)
+            return order1 < order2
         }
     }
     
@@ -60,23 +83,4 @@ class CategoryManager: ObservableObject {
     func isEnabled(_ category: ContactCategory) -> Bool {
         !disabledCategories.contains(category.rawValue)
     }
-    
-    func reorderCategories(from source: IndexSet, to destination: Int) {
-        var ordered = enabledCategories.map { $0.rawValue }
-        ordered.move(fromOffsets: source, toOffset: destination)
-        
-        // Update order for all categories (including disabled ones)
-        var allOrdered = categoryOrder
-        let enabledSet = Set(enabledCategories.map { $0.rawValue })
-        
-        // Remove enabled categories from current order
-        allOrdered.removeAll { enabledSet.contains($0) }
-        
-        // Insert enabled categories at the new position
-        let insertIndex = min(destination, allOrdered.count)
-        allOrdered.insert(contentsOf: ordered, at: insertIndex)
-        
-        categoryOrder = allOrdered
-    }
 }
-

@@ -89,6 +89,41 @@ struct ContentView: View {
         }.count
     }
     
+    // Unified category list sorted by order (allows interleaving)
+    struct CategoryItem: Identifiable {
+        let id: String
+        let builtInCategory: ContactCategory?
+        let customCategory: CustomCategory?
+        let order: Int
+    }
+    
+    var allCategoriesSorted: [CategoryItem] {
+        var items: [CategoryItem] = []
+        
+        // Add built-in categories
+        for category in categoryManager.enabledCategories {
+            items.append(CategoryItem(
+                id: category.rawValue,
+                builtInCategory: category,
+                customCategory: nil,
+                order: categoryManager.getOrder(for: category)
+            ))
+        }
+        
+        // Add custom categories
+        for customCat in customCategories {
+            items.append(CategoryItem(
+                id: customCat.id.uuidString,
+                builtInCategory: nil,
+                customCategory: customCat,
+                order: customCat.order
+            ))
+        }
+        
+        // Sort by order - allows true interleaving!
+        return items.sorted { $0.order < $1.order }
+    }
+    
     var greeting: String {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: Date())
@@ -137,7 +172,7 @@ struct ContentView: View {
                 )
                 .padding()
                 
-                // Category Filter
+                // Category Filter - Unified order
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         CategoryFilterButton(
@@ -151,32 +186,32 @@ struct ContentView: View {
                             showingRecentCatchupsOnly = false
                         }
                         
-                        ForEach(categoryManager.enabledCategories, id: \.self) { category in
-                            CategoryFilterButton(
-                                title: category.rawValue,
-                                icon: category.icon,
-                                isSelected: selectedCategoryIdentifier == category.rawValue,
-                                count: contacts.filter { $0.categoryIdentifier == category.rawValue && $0.customCategoryId == nil }.count
-                            ) {
-                                selectedCategoryIdentifier = category.rawValue
-                                selectedCustomCategoryId = nil
-                                showingOverdueOnly = false
-                                showingRecentCatchupsOnly = false
-                            }
-                        }
-                        
-                        // Add custom categories
-                        ForEach(customCategories, id: \.id) { customCat in
-                            CategoryFilterButton(
-                                title: customCat.name,
-                                emoji: customCat.emoji,
-                                isSelected: selectedCustomCategoryId == customCat.id,
-                                count: contacts.filter { $0.customCategoryId == customCat.id }.count
-                            ) {
-                                selectedCustomCategoryId = customCat.id
-                                selectedCategoryIdentifier = nil
-                                showingOverdueOnly = false
-                                showingRecentCatchupsOnly = false
+                        // Combine built-in and custom categories, sorted by order
+                        ForEach(allCategoriesSorted, id: \.id) { categoryItem in
+                            if let builtIn = categoryItem.builtInCategory {
+                                CategoryFilterButton(
+                                    title: builtIn.rawValue,
+                                    icon: builtIn.icon,
+                                    isSelected: selectedCategoryIdentifier == builtIn.rawValue,
+                                    count: contacts.filter { $0.categoryIdentifier == builtIn.rawValue && $0.customCategoryId == nil }.count
+                                ) {
+                                    selectedCategoryIdentifier = builtIn.rawValue
+                                    selectedCustomCategoryId = nil
+                                    showingOverdueOnly = false
+                                    showingRecentCatchupsOnly = false
+                                }
+                            } else if let customCat = categoryItem.customCategory {
+                                CategoryFilterButton(
+                                    title: customCat.name,
+                                    emoji: customCat.emoji,
+                                    isSelected: selectedCustomCategoryId == customCat.id,
+                                    count: contacts.filter { $0.customCategoryId == customCat.id }.count
+                                ) {
+                                    selectedCustomCategoryId = customCat.id
+                                    selectedCategoryIdentifier = nil
+                                    showingOverdueOnly = false
+                                    showingRecentCatchupsOnly = false
+                                }
                             }
                         }
                     }

@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var showingAddCategory = false
     @State private var newCategoryName = ""
     @State private var newCategoryEmoji = "📁"
+    @State private var editMode: EditMode = .active
     
     struct CategoryItem: Identifiable {
         let id: String
@@ -31,12 +32,11 @@ struct SettingsView: View {
     var allCategories: [CategoryItem] {
         var items: [CategoryItem] = []
         
-        // Add built-in categories
+        // Add built-in categories with their order values
         let enabledBuiltIn = categoryManager.enabledCategories
-        let order = categoryManager.categoryOrder
         
         for category in enabledBuiltIn {
-            let orderIndex = order.firstIndex(of: category.rawValue) ?? Int.max
+            let order = categoryManager.getOrder(for: category)
             items.append(CategoryItem(
                 id: category.rawValue,
                 name: category.rawValue,
@@ -45,11 +45,11 @@ struct SettingsView: View {
                 isLocked: category == .personal,
                 builtInCategory: category,
                 customCategory: nil,
-                order: orderIndex
+                order: order
             ))
         }
         
-        // Add custom categories
+        // Add custom categories with their order values
         for customCat in customCategories {
             items.append(CategoryItem(
                 id: customCat.id.uuidString,
@@ -59,10 +59,11 @@ struct SettingsView: View {
                 isLocked: false,
                 builtInCategory: nil,
                 customCategory: customCat,
-                order: customCat.order + 1000 // Place after built-in
+                order: customCat.order
             ))
         }
         
+        // Sort by order - this allows true interleaving!
         return items.sorted { $0.order < $1.order }
     }
     
@@ -128,11 +129,6 @@ struct SettingsView: View {
                 
                 ForEach(allCategories, id: \.id) { categoryItem in
                     HStack {
-                        // Drag handle
-                        Image(systemName: "line.3.horizontal")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                        
                         if let customCat = categoryItem.customCategory {
                             Text(customCat.emoji)
                                 .font(.title3)
@@ -143,15 +139,22 @@ struct SettingsView: View {
                                 .frame(width: 24)
                         }
                         
-                        Text(categoryItem.name)
+                        HStack(spacing: 4) {
+                            Text(categoryItem.name)
+                            
+                            if categoryItem.isLocked {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                        }
                         
                         Spacer()
                         
-                        if categoryItem.isLocked {
-                            Image(systemName: "lock.fill")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        }
+                        // Drag handle on the right
+                        Image(systemName: "line.3.horizontal")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         if !categoryItem.isLocked {
@@ -168,6 +171,7 @@ struct SettingsView: View {
                     }
                 }
                 .onMove(perform: reorderAllCategories)
+                .environment(\.editMode, $editMode)
                 
                 if allCategories.count < 6 {
                     Button {
@@ -260,11 +264,6 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                EditButton()
-            }
-        }
         .alert("Export Data", isPresented: $showingExportAlert) {
             Button("Share") {
                 showingShareSheet = true
@@ -364,7 +363,11 @@ struct SettingsView: View {
     }
     
     private func addCustomCategory() {
-        let maxOrder = customCategories.map { $0.order }.max() ?? (categoryManager.enabledCategories.count - 1)
+        // Find the maximum order value among all categories (built-in + custom)
+        let maxBuiltInOrder = categoryManager.enabledCategories.map { categoryManager.getOrder(for: $0) }.max() ?? -1
+        let maxCustomOrder = customCategories.map { $0.order }.max() ?? -1
+        let maxOrder = max(maxBuiltInOrder, maxCustomOrder)
+        
         let category = CustomCategory(
             name: newCategoryName,
             emoji: newCategoryEmoji,
@@ -397,33 +400,32 @@ struct SettingsView: View {
     }
     
     private func reorderAllCategories(from source: IndexSet, to destination: Int) {
+        // Get current categories array
         var reordered = allCategories
+        
+        // Perform the move operation
         reordered.move(fromOffsets: source, toOffset: destination)
         
-        // Update order for built-in categories
-        var builtInOrder: [String] = []
-        
-        for (index, item) in reordered.enumerated() {
+        // Now assign sequential order values (0, 1, 2, ...) based on final positions
+        // This allows true interleaving of built-in and custom categories
+        for (finalPosition, item) in reordered.enumerated() {
             if let builtIn = item.builtInCategory {
-                builtInOrder.append(builtIn.rawValue)
+                // Update built-in category order
+                categoryManager.setOrder(finalPosition, for: builtIn)
             } else if let custom = item.customCategory {
                 // Update custom category order
-                custom.order = index
+                custom.order = finalPosition
             }
         }
         
-        // Update built-in category order
-        categoryManager.categoryOrder = builtInOrder
-        
-        // Save custom category orders
+        // Save changes
         do {
             try modelContext.save()
+            // Trigger refresh to update UI
+            categoryManager.refreshTrigger = UUID()
         } catch {
             print("Error saving category order: \(error)")
         }
-        
-        // Trigger refresh
-        categoryManager.refreshTrigger = UUID()
     }
 }
 
