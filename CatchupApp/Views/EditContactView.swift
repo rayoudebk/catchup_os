@@ -9,7 +9,7 @@ struct EditContactView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Basic Information") {
+                Section("Contact Detail") {
                     TextField("Name", text: $contact.name)
                     
                     TextField("Phone Number", text: Binding(
@@ -26,25 +26,49 @@ struct EditContactView: View {
                     .textInputAutocapitalization(.never)
                 }
                 
-                Section("Category") {
+                Section("Contact Type") {
+                    Toggle(isOn: $contact.isFavorite) {
+                        Label("Mark as Favorite", systemImage: "star.fill")
+                    }
+                    
                     Picker("Category", selection: $contact.category) {
-                        ForEach(ContactCategory.allCases, id: \.self) { cat in
+                        ForEach(CategoryManager.shared.enabledCategories, id: \.self) { cat in
                             Text(cat.rawValue)
                                 .tag(cat)
                         }
                     }
                     .pickerStyle(.menu)
                     
-                    HStack {
-                        Image(systemName: contact.category.icon)
-                            .foregroundColor(.blue)
-                        Text(contact.category.rawValue)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("We met...")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            TextField("How did you meet?", text: Binding(
+                                get: { contact.weMet },
+                                set: { 
+                                    let limited = String($0.prefix(50))
+                                    contact.weMet = ensureLowercaseFirst(limited)
+                                }
+                            ))
+                            .textInputAutocapitalization(.never)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: contact.weMet) { _, newValue in
+                                if newValue.count > 50 {
+                                    contact.weMet = ensureLowercaseFirst(String(newValue.prefix(50)))
+                                } else {
+                                    contact.weMet = ensureLowercaseFirst(newValue)
+                                }
+                            }
+                        }
+                        
+                        Text("e.g., \"during XYZ conference\", \"at ABC school\"")
+                            .font(.caption)
                             .foregroundColor(.secondary)
-                        Spacer()
                     }
                 }
                 
-                Section("Check-in Frequency") {
+                Section("Check-in Settings") {
                     Picker("Check in every", selection: $contact.frequencyDays) {
                         ForEach(frequencyOptions, id: \.self) { days in
                             Text("\(frequencyLabel(for: days))")
@@ -52,12 +76,6 @@ struct EditContactView: View {
                         }
                     }
                     
-                    Text("You'll be reminded to reach out every \(frequencyLabel(for: contact.frequencyDays).lowercased())")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Section("Preferred Check-in Time") {
                     Picker("Preferred Day", selection: Binding(
                         get: { contact.preferredDayOfWeek ?? 0 },
                         set: { contact.preferredDayOfWeek = $0 == 0 ? nil : $0 }
@@ -84,20 +102,9 @@ struct EditContactView: View {
                     }
                     .pickerStyle(.menu)
                     
-                    Text("Set your preferred day and time for check-in reminders")
+                    Text("You'll be reminded to reach out every \(frequencyLabel(for: contact.frequencyDays).lowercased())")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                }
-                
-                Section("Notes") {
-                    TextEditor(text: $contact.notes)
-                        .frame(height: 100)
-                }
-                
-                Section {
-                    Toggle(isOn: $contact.isFavorite) {
-                        Label("Mark as Favorite", systemImage: "star.fill")
-                    }
                 }
             }
             .navigationTitle("Edit Contact")
@@ -119,6 +126,13 @@ struct EditContactView: View {
                 }
             }
         }
+    }
+    
+    private func ensureLowercaseFirst(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        let firstChar = text.prefix(1).lowercased()
+        let rest = text.dropFirst()
+        return firstChar + rest
     }
     
     private func frequencyLabel(for days: Int) -> String {

@@ -5,6 +5,8 @@ struct CheckInHistorySection: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var contact: Contact
     @Binding var expandedCheckInId: UUID?
+    @Binding var showingCheckInSheet: Bool
+    @State private var showingEditCheckIn: CheckIn? = nil
     
     var sortedCheckIns: [CheckIn] {
         contact.checkIns?.sorted(by: { $0.date > $1.date }) ?? []
@@ -13,7 +15,7 @@ struct CheckInHistorySection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Check-in History")
+                Text("Check-ins")
                     .font(.headline)
                 
                 Spacer()
@@ -22,6 +24,28 @@ struct CheckInHistorySection: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            .padding(.horizontal)
+            
+            // Check-in Status + Actions Section
+            VStack(spacing: 16) {
+                CheckInStatusView(contact: contact)
+                QuickActionsView(contact: contact)
+                
+                Button {
+                    showingCheckInSheet = true
+                } label: {
+                    Label("Record Check-in", systemImage: "checkmark.circle.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+            }
+            .padding()
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(16)
             .padding(.horizontal)
             
             if sortedCheckIns.isEmpty {
@@ -33,9 +57,7 @@ struct CheckInHistorySection: View {
                             checkIn: checkIn,
                             isExpanded: expandedCheckInId == checkIn.id,
                             onTap: {
-                                withAnimation {
-                                    expandedCheckInId = expandedCheckInId == checkIn.id ? nil : checkIn.id
-                                }
+                                showingEditCheckIn = checkIn
                             },
                             onDelete: {
                                 deleteCheckIn(checkIn)
@@ -52,6 +74,9 @@ struct CheckInHistorySection: View {
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
+        }
+        .sheet(item: $showingEditCheckIn) { checkIn in
+            CheckInSheetView(contact: contact, checkIn: checkIn)
         }
     }
     

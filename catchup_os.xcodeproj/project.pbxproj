@@ -30,6 +30,10 @@
 		34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C132EBBC008009928AA /* ContactHeaderCard.swift */; };
 		34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C142EBBC00A009928AA /* CheckInHistorySection.swift */; };
 		34715C152EBBC00B009928AA /* ContactInfoSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C152EBBC00C009928AA /* ContactInfoSection.swift */; };
+		34715C162EBBC00E009928AA /* PhotosTogetherSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */; };
+		34715C172EBBC00F009928AA /* CustomCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C172EBBC010009928AA /* CustomCategory.swift */; };
+		34715C182EBBC011009928AA /* CategoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C182EBBC012009928AA /* CategoryManagementView.swift */; };
+		34715C192EBBC013009928AA /* CategoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C192EBBC014009928AA /* CategoryManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -67,6 +71,10 @@
 		34715C132EBBC008009928AA /* ContactHeaderCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactHeaderCard.swift; sourceTree = "<group>"; };
 		34715C142EBBC00A009928AA /* CheckInHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInHistorySection.swift; sourceTree = "<group>"; };
 		34715C152EBBC00C009928AA /* ContactInfoSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactInfoSection.swift; sourceTree = "<group>"; };
+		34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTogetherSection.swift; sourceTree = "<group>"; };
+		34715C172EBBC010009928AA /* CustomCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomCategory.swift; sourceTree = "<group>"; };
+		34715C182EBBC012009928AA /* CategoryManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementView.swift; sourceTree = "<group>"; };
+		34715C192EBBC014009928AA /* CategoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -133,6 +141,7 @@
 			children = (
 				34715BCF2EBBA149009928AA /* NotificationManager.swift */,
 				34715C0D2EBBAE83009928AA /* PhotosManager.swift */,
+				34715C192EBBC014009928AA /* CategoryManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -142,6 +151,7 @@
 			children = (
 				34715BD12EBBA149009928AA /* CheckIn.swift */,
 				34715BD22EBBA149009928AA /* Contact.swift */,
+				34715C172EBBC010009928AA /* CustomCategory.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -160,6 +170,7 @@
 				34715C132EBBC008009928AA /* ContactHeaderCard.swift */,
 				34715C142EBBC00A009928AA /* CheckInHistorySection.swift */,
 				34715C152EBBC00C009928AA /* ContactInfoSection.swift */,
+				34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -173,6 +184,7 @@
 				34715BDB2EBBA149009928AA /* ContactDetailView.swift */,
 				34715BDC2EBBA149009928AA /* EditContactView.swift */,
 				34715BDD2EBBA149009928AA /* SettingsView.swift */,
+				34715C182EBBC012009928AA /* CategoryManagementView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -315,6 +327,10 @@
 				34715C122EBBC005009928AA /* RemindersSection.swift in Sources */,
 				34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */,
 				34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */,
+				34715C162EBBC00E009928AA /* PhotosTogetherSection.swift in Sources */,
+				34715C172EBBC00F009928AA /* CustomCategory.swift in Sources */,
+				34715C182EBBC011009928AA /* CategoryManagementView.swift in Sources */,
+				34715C192EBBC013009928AA /* CategoryManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

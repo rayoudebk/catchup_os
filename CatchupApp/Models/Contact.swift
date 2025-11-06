@@ -21,6 +21,7 @@ final class Contact {
     var birthday: Date? // Birthday from contacts
     var profileImageData: Data? // Profile image from contacts
     var contactIdentifier: String? // Original CNContact identifier
+    var weMet: String // "We met..." text
     
     @Relationship(deleteRule: .cascade, inverse: \CheckIn.contact)
     var checkIns: [CheckIn]?
@@ -40,7 +41,8 @@ final class Contact {
         photosPersonLocalIdentifier: String? = nil,
         birthday: Date? = nil,
         profileImageData: Data? = nil,
-        contactIdentifier: String? = nil
+        contactIdentifier: String? = nil,
+        weMet: String = ""
     ) {
         self.id = UUID()
         self.name = name
@@ -58,6 +60,7 @@ final class Contact {
         self.birthday = birthday
         self.profileImageData = profileImageData
         self.contactIdentifier = contactIdentifier
+        self.weMet = weMet
         self.createdAt = Date()
         self.checkIns = []
     }

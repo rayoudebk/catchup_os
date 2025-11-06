@@ -55,6 +55,10 @@
 	<string>We'd like to link photos with your contacts to help you remember memories together</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We'd like to access your photos to create photo memories with contacts</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to enable voice-to-text for your check-in notes</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We use speech recognition to help you quickly record check-in notes by voice</string>
 </dict>
 </plist>
 

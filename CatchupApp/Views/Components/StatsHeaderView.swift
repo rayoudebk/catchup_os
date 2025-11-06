@@ -1,24 +1,42 @@
 import SwiftUI
 
 struct StatsHeaderView: View {
-    let totalContacts: Int
     let overdueCount: Int
+    let recentCatchupsCount: Int
+    @Binding var showingOverdueOnly: Bool
+    @Binding var showingRecentCatchupsOnly: Bool
+    var onOverdueToggle: (() -> Void)? = nil
+    var onRecentCatchupsToggle: (() -> Void)? = nil
     
     var body: some View {
         HStack(spacing: 20) {
-            StatCard(
-                title: "Total Contacts",
-                value: "\(totalContacts)",
-                icon: "person.2.fill",
-                color: .blue
-            )
+            Button {
+                showingRecentCatchupsOnly.toggle()
+                onRecentCatchupsToggle?()
+            } label: {
+                StatCard(
+                    title: "Catch ups (last 7 days)",
+                    value: "\(recentCatchupsCount)",
+                    icon: "checkmark.circle.fill",
+                    color: .blue,
+                    isSelected: showingRecentCatchupsOnly
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
             
-            StatCard(
-                title: "Need Attention",
-                value: "\(overdueCount)",
-                icon: "exclamationmark.circle.fill",
-                color: overdueCount > 0 ? .red : .green
-            )
+            Button {
+                showingOverdueOnly.toggle()
+                onOverdueToggle?()
+            } label: {
+                StatCard(
+                    title: "Catchup Overdue",
+                    value: "\(overdueCount)",
+                    icon: "exclamationmark.circle.fill",
+                    color: overdueCount > 0 ? .red : .green,
+                    isSelected: showingOverdueOnly
+                )
+            }
+            .buttonStyle(PlainButtonStyle())
         }
     }
 }
@@ -28,6 +46,7 @@ struct StatCard: View {
     let value: String
     let icon: String
     let color: Color
+    var isSelected: Bool = false
     
     var body: some View {
         HStack {
@@ -48,7 +67,11 @@ struct StatCard: View {
                 .foregroundColor(color)
         }
         .padding()
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(isSelected ? color.opacity(0.1) : Color(UIColor.secondarySystemBackground))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? color : Color.clear, lineWidth: 2)
+        )
         .cornerRadius(12)
     }
 }

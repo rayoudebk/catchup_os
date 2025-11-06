@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class CheckIn {
+final class CheckIn: Identifiable {
     var id: UUID
     var date: Date
     var note: String

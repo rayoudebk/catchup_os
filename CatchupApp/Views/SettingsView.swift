@@ -5,12 +5,17 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [Contact]
     @Query private var checkIns: [CheckIn]
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
     
+    @ObservedObject private var categoryManager = CategoryManager.shared
     @State private var notificationsEnabled = true
     @State private var showingExportAlert = false
     @State private var showingClearDataAlert = false
     @State private var exportData = ""
     @State private var showingShareSheet = false
+    @State private var showingAddCategory = false
+    @State private var newCategoryName = ""
+    @State private var newCategoryEmoji = "📁"
     
     var body: some View {
         List {
@@ -67,11 +72,66 @@ struct SettingsView: View {
                 }
             }
             
+            Section("Categories") {
+                Text("Maximum 6 categories total. Personal category cannot be deleted.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                ForEach(categoryManager.enabledCategories, id: \.self) { category in
+                    HStack {
+                        Image(systemName: category.icon)
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        
+                        Text(category.rawValue)
+                        
+                        Spacer()
+                        
+                        if category == .personal {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        } else {
+                            Button(role: .destructive) {
+                                deleteCategory(category)
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                }
+                .onMove { source, destination in
+                    categoryManager.reorderCategories(from: source, to: destination)
+                }
+                
+                if categoryManager.enabledCategories.count + customCategories.count < 6 {
+                    Button {
+                        showingAddCategory = true
+                    } label: {
+                        Label("Add Category", systemImage: "plus.circle")
+                    }
+                }
+            }
+            .onChange(of: categoryManager.refreshTrigger) { _, _ in
+                // Trigger view refresh
+            }
+            .sheet(isPresented: $showingAddCategory) {
+                AddCategorySheet(
+                    newCategoryName: $newCategoryName,
+                    newCategoryEmoji: $newCategoryEmoji,
+                    onSave: {
+                        addCustomCategory()
+                        showingAddCategory = false
+                    }
+                )
+            }
+            
             Section("Data Management") {
                 Button {
                     exportDataToJSON()
                 } label: {
-                    Label("Export Data", systemImage: "square.and.arrow.up")
+                    Label("Export Data (json file)", systemImage: "square.and.arrow.up")
                 }
                 
                 Button {
@@ -129,6 +189,11 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                EditButton()
+            }
+        }
         .alert("Export Data", isPresented: $showingExportAlert) {
             Button("Share") {
                 showingShareSheet = true
@@ -181,7 +246,7 @@ struct SettingsView: View {
                 "id": checkIn.id.uuidString,
                 "date": checkIn.date.ISO8601Format(),
                 "note": checkIn.note,
-                "type": checkIn.checkInType.rawValue,
+                "title": checkIn.title,
                 "contactId": checkIn.contact?.id.uuidString ?? ""
             ] as [String : Any]
         }
@@ -211,6 +276,73 @@ struct SettingsView: View {
         
         // Cancel all notifications
         NotificationManager.shared.cancelAllNotifications()
+    }
+    
+    private func deleteCategory(_ category: ContactCategory) {
+        // Find all contacts with this category and change them to Personal
+        for contact in contacts {
+            if contact.category == category {
+                contact.category = .personal
+            }
+        }
+        
+        // Disable the category so it doesn't show in UI - this triggers refresh
+        categoryManager.disableCategory(category)
+    }
+    
+    private func addCustomCategory() {
+        let maxOrder = customCategories.map { $0.order }.max() ?? -1
+        let category = CustomCategory(
+            name: newCategoryName,
+            emoji: newCategoryEmoji,
+            icon: "folder.fill",
+            order: maxOrder + 1
+        )
+        modelContext.insert(category)
+        
+        // Add to category order
+        var order = categoryManager.categoryOrder
+        order.append(newCategoryName)
+        categoryManager.categoryOrder = order
+        
+        newCategoryName = ""
+        newCategoryEmoji = "📁"
+    }
+}
+
+struct AddCategorySheet: View {
+    @Binding var newCategoryName: String
+    @Binding var newCategoryEmoji: String
+    let onSave: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Category Details") {
+                    TextField("Category Name", text: $newCategoryName)
+                    TextField("Emoji", text: $newCategoryEmoji)
+                        .textInputAutocapitalization(.never)
+                }
+            }
+            .navigationTitle("Add Category")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        newCategoryName = ""
+                        newCategoryEmoji = "📁"
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        onSave()
+                    }
+                    .disabled(newCategoryName.isEmpty)
+                }
+            }
+        }
     }
 }
 

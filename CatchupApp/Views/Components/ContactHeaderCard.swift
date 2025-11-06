@@ -2,31 +2,68 @@ import SwiftUI
 
 struct ContactHeaderCard: View {
     @Bindable var contact: Contact
-    @Binding var showingCheckInSheet: Bool
     
     var body: some View {
+        // Box 1: Profile Info (Avatar + Name + Category + Birthday) - Full width
         VStack(spacing: 16) {
             ContactAvatar(contact: contact)
-            ContactNameSection(contact: contact)
-            CheckInStatusView(contact: contact)
-            QuickActionsView(contact: contact)
             
-            Button {
-                showingCheckInSheet = true
-            } label: {
-                Label("Record Check-in", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
+            VStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(contact.name)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    if contact.isFavorite {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                            .font(.title3)
+                    }
+                }
+                
+                HStack(spacing: 12) {
+                    // Category
+                    HStack(spacing: 4) {
+                        Image(systemName: contact.category.icon)
+                            .font(.caption)
+                        Text(contact.category.rawValue)
+                            .font(.subheadline)
+                    }
+                    
+                    // Birthday if available
+                    if let birthday = contact.birthday {
+                        Text("•")
+                            .font(.caption)
+                        HStack(spacing: 4) {
+                            Image(systemName: "gift.fill")
+                                .font(.caption)
+                            Text(birthdayString(birthday))
+                                .font(.subheadline)
+                        }
+                    }
+                }
+                .foregroundColor(.secondary)
+                
+                // "We met..." text if available
+                if !contact.weMet.isEmpty {
+                    Text("We met \(contact.weMet)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
         }
+        .frame(maxWidth: .infinity)
         .padding()
         .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(16)
         .padding(.horizontal)
+    }
+    
+    private func birthdayString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
     }
 }
 
@@ -60,49 +97,6 @@ struct ContactAvatar: View {
     }
 }
 
-struct ContactNameSection: View {
-    let contact: Contact
-    
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Text(contact.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                if contact.isFavorite {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                }
-            }
-            
-            HStack(spacing: 8) {
-                Image(systemName: contact.category.icon)
-                    .font(.caption)
-                Text(contact.category.rawValue)
-                    .font(.subheadline)
-            }
-            .foregroundColor(.secondary)
-            
-            if let birthday = contact.birthday {
-                HStack(spacing: 4) {
-                    Image(systemName: "gift.fill")
-                        .font(.caption2)
-                    Text(birthdayString(birthday))
-                        .font(.caption)
-                }
-                .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    private func birthdayString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
-    }
-}
-
 struct CheckInStatusView: View {
     let contact: Contact
     
@@ -125,12 +119,6 @@ struct CheckInStatusView: View {
                 Text("No check-ins yet")
                     .font(.headline)
                     .foregroundColor(.orange)
-            }
-            
-            if let lastCheckIn = contact.lastCheckInDate {
-                Text("Last check-in: \(lastCheckIn, style: .date)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 8)
@@ -193,3 +181,28 @@ struct QuickActionsView: View {
     }
 }
 
+struct QuickActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                    .frame(height: 32)
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(color.opacity(0.1))
+            .cornerRadius(12)
+        }
+    }
+}

@@ -64,12 +64,7 @@ struct AddContactView: View {
             let birthday = cnContact.birthday?.date
             
             // Get profile image
-            var imageData: Data? = nil
-            if let imageData = cnContact.imageData {
-                imageData = imageData
-            } else if let thumbnailData = cnContact.thumbnailImageData {
-                imageData = thumbnailData
-            }
+            let imageData: Data? = cnContact.imageData ?? cnContact.thumbnailImageData
             
             // Create contact with defaults: Personal category, Monthly frequency
             let contact = Contact(

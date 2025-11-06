@@ -15,10 +15,11 @@ struct ContactDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                GiftIdeaSection(contact: contact)
+                ContactHeaderCard(contact: contact)
                 RemindersSection(contact: contact, showingAddReminder: $showingAddReminder)
-                ContactHeaderCard(contact: contact, showingCheckInSheet: $showingCheckInSheet)
-                CheckInHistorySection(contact: contact, expandedCheckInId: $expandedCheckInId)
+                CheckInHistorySection(contact: contact, expandedCheckInId: $expandedCheckInId, showingCheckInSheet: $showingCheckInSheet)
+                GiftIdeaSection(contact: contact)
+                PhotosTogetherSection(contact: contact)
             }
             .padding(.vertical)
         }
@@ -87,29 +88,6 @@ struct ContactDetailView: View {
 }
 
 // Helper views used by components
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title3)
-                Text(title)
-                    .font(.caption)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(color.opacity(0.1))
-            .foregroundColor(color)
-            .cornerRadius(12)
-        }
-    }
-}
-
 struct InfoRow: View {
     let icon: String
     let title: String
