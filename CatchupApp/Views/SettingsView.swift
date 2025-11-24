@@ -312,14 +312,14 @@ struct SettingsView: View {
                 HStack {
                     Text("Developer")
                     Spacer()
-                    Text("Catchup Team")
+                    Text("Contacts+Notes Team")
                         .foregroundColor(.secondary)
                 }
             }
             
             Section {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("How to Use Catchup")
+                    Text("How to Use Contacts+Notes")
                         .font(.headline)
                     
                     Text("1. Add contacts you want to stay connected with")
@@ -370,7 +370,7 @@ struct SettingsView: View {
     }
     
     private func shareApp() {
-        let items: [Any] = ["Help your relationships thrive with Catchup!", URL(string: "https://apps.apple.com/app/id0000000000")!]
+        let items: [Any] = ["Help your relationships thrive with Contacts+Notes!", URL(string: "https://apps.apple.com/app/id0000000000")!]
         let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let root = scene.windows.first?.rootViewController {
