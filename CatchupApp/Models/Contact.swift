@@ -119,6 +119,15 @@ enum ContactCategory: String, Codable, CaseIterable {
         case .friends: return "person.2.fill"
         }
     }
+    
+    var emoji: String {
+        switch self {
+        case .personal: return "👤"
+        case .work: return "💼"
+        case .family: return "🏠"
+        case .friends: return "👥"
+        }
+    }
 }
 
 // Helper struct to get category display information

@@ -9,7 +9,7 @@ struct EditContactView: View {
     @Bindable var contact: Contact
     @State private var showingCategoryPicker = false
     
-    let frequencyOptions = [7, 14, 21, 30, 60, 90, 180, 365]
+    let frequencyOptions = [7, 30, 90, 365]
     
     var body: some View {
         NavigationStack {
@@ -77,7 +77,7 @@ struct EditContactView: View {
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        HStack {
+                    HStack {
                             Text("We met...")
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -174,14 +174,10 @@ struct EditContactView: View {
     
     private func frequencyLabel(for days: Int) -> String {
         switch days {
-        case 7: return "Week"
-        case 14: return "2 Weeks"
-        case 21: return "3 Weeks"
-        case 30: return "Month"
-        case 60: return "2 Months"
-        case 90: return "3 Months"
-        case 180: return "6 Months"
-        case 365: return "Year"
+        case 7: return "Weekly"
+        case 30: return "Monthly"
+        case 90: return "Quarterly"
+        case 365: return "Yearly"
         default: return "\(days) Days"
         }
     }

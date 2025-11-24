@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var exportData = ""
     @State private var showingShareSheet = false
     @State private var showingAddCategory = false
+    @State private var showingBulkFrequencyEdit = false
+    @State private var showingBulkCategoryEdit = false
     @State private var newCategoryName = ""
     @State private var newCategoryEmoji = ""
     @State private var editMode: EditMode = .active
@@ -154,6 +156,32 @@ struct SettingsView: View {
                 }
             }
             
+            Section("Contact Management") {
+                Button {
+                    showingBulkFrequencyEdit = true
+                } label: {
+                    HStack {
+                        Text("Bulk Frequency Edit")
+                        Spacer()
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Button {
+                    showingBulkCategoryEdit = true
+                } label: {
+                    HStack {
+                        Text("Bulk Category Edit")
+                        Spacer()
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
             Section("Categories") {
                 Text("Maximum 6 categories total. Personal category cannot be deleted.")
                     .font(.caption)
@@ -240,6 +268,12 @@ struct SettingsView: View {
                         // Empty - parent sheet's onDismiss handles cleanup
                     }
                 )
+            }
+            .sheet(isPresented: $showingBulkFrequencyEdit) {
+                BulkFrequencyEditView()
+            }
+            .sheet(isPresented: $showingBulkCategoryEdit) {
+                BulkCategoryEditView()
             }
             
             Section("Data Management") {
@@ -625,6 +659,451 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+// Bulk frequency edit view - bucket-based UI similar to add contacts
+struct BulkFrequencyEditView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Contact.name) private var contacts: [Contact]
+    @State private var searchText = ""
+    @State private var selectedFrequency: Int? = nil
+    @State private var contactFrequencyMap: [UUID: Int] = [:]
+    
+    let frequencyOptions = [7, 30, 90, 365]
+    
+    func frequencyLabel(for days: Int) -> String {
+        switch days {
+        case 7: return "Weekly"
+        case 30: return "Monthly"
+        case 90: return "Quarterly"
+        case 365: return "Yearly"
+        default: return "\(days) Days"
+        }
+    }
+    
+    // Filter contacts by search
+    var filteredContacts: [Contact] {
+        if searchText.isEmpty {
+            return contacts
+        }
+        return contacts.filter { contact in
+            contact.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    
+    // Get count of contacts with a frequency
+    func contactCount(for frequency: Int) -> Int {
+        contacts.filter { contactFrequencyMap[$0.id] == frequency }.count
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Frequency selection buttons at the top
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Set how often you want to catch up")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    
+                    // Frequency buttons
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(frequencyOptions, id: \.self) { frequency in
+                                FrequencyBucketButton(
+                                    title: frequencyLabel(for: frequency),
+                                    isSelected: selectedFrequency == frequency,
+                                    count: contactCount(for: frequency)
+                                ) {
+                                    selectedFrequency = frequency
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 16)
+                .background(Color(UIColor.secondarySystemBackground))
+                
+                // Search bar
+                SearchBar(text: $searchText)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                
+                // Contact list
+                if contacts.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.crop.circle.badge.questionmark")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                        Text("No contacts to edit")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if selectedFrequency == nil {
+                    VStack(spacing: 16) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 60))
+                            .foregroundColor(.secondary)
+                        Text("Select a frequency above, then tap contacts to assign")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(filteredContacts) { contact in
+                            ContactFrequencyAssignmentRow(
+                                contact: contact,
+                                selectedFrequency: selectedFrequency!,
+                                isSelected: contactFrequencyMap[contact.id] == selectedFrequency,
+                                onToggle: { isSelected in
+                                    if isSelected {
+                                        contactFrequencyMap[contact.id] = selectedFrequency!
+                                    } else {
+                                        contactFrequencyMap.removeValue(forKey: contact.id)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+            .navigationTitle("Bulk Frequency Edit")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        saveFrequencies()
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                // Initialize map with current frequencies
+                for contact in contacts {
+                    contactFrequencyMap[contact.id] = contact.frequencyDays
+                }
+            }
+        }
+    }
+    
+    private func saveFrequencies() {
+        for contact in contacts {
+            if let newFrequency = contactFrequencyMap[contact.id], newFrequency != contact.frequencyDays {
+                contact.frequencyDays = newFrequency
+                // Reschedule notification with new frequency
+                NotificationManager.shared.scheduleNotification(for: contact)
+            }
+        }
+    }
+}
 
+// Frequency bucket button component
+struct FrequencyBucketButton: View {
+    let title: String
+    let isSelected: Bool
+    let count: Int
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundColor(isSelected ? .white : .primary)
+                
+                Text("\(count)")
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+            }
+            .frame(width: 100, height: 80)
+            .background(isSelected ? Color.blue : Color(UIColor.secondarySystemBackground))
+            .cornerRadius(12)
+        }
+    }
+}
+
+// Contact frequency assignment row
+struct ContactFrequencyAssignmentRow: View {
+    let contact: Contact
+    let selectedFrequency: Int
+    let isSelected: Bool
+    let onToggle: (Bool) -> Void
+    
+    var body: some View {
+        Button {
+            onToggle(!isSelected)
+        } label: {
+            HStack {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .blue : .secondary)
+                    .font(.title3)
+                
+                Text(contact.name)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// Bulk category edit view - similar to AddCategoryBannerSheetView
+struct BulkCategoryEditView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Contact.name) private var contacts: [Contact]
+    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
+    @ObservedObject private var categoryManager = CategoryManager.shared
+    
+    @State private var searchText = ""
+    @State private var selectedCategoryId: String? // For built-in categories
+    @State private var selectedCustomCategoryId: UUID? // For custom categories
+    @State private var contactCategoryMap: [UUID: (categoryId: String?, customId: UUID?)] = [:]
+    
+    // All categories sorted by order (excluding Personal as it's the catch-all)
+    var allCategoriesSorted: [CategoryItemForBulk] {
+        var items: [CategoryItemForBulk] = []
+        
+        // Add built-in categories (excluding Personal)
+        for category in categoryManager.enabledCategories where category != .personal {
+            items.append(CategoryItemForBulk(
+                id: category.rawValue,
+                builtInCategory: category,
+                customCategory: nil,
+                order: categoryManager.getOrder(for: category)
+            ))
+        }
+        
+        // Add custom categories
+        for customCat in customCategories {
+            items.append(CategoryItemForBulk(
+                id: customCat.id.uuidString,
+                builtInCategory: nil,
+                customCategory: customCat,
+                order: customCat.order
+            ))
+        }
+        
+        return items.sorted { $0.order < $1.order }
+    }
+    
+    // Filter contacts by search
+    var filteredContacts: [Contact] {
+        if searchText.isEmpty {
+            return contacts
+        }
+        return contacts.filter { contact in
+            contact.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    
+    // Get count of contacts in a category
+    func contactCount(for categoryId: String?, customId: UUID?) -> Int {
+        if let customId = customId {
+            return contacts.filter { $0.customCategoryId == customId }.count
+        } else if let categoryId = categoryId {
+            return contacts.filter { $0.categoryIdentifier == categoryId && $0.customCategoryId == nil }.count
+        }
+        return 0
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                categorySelectionSection
+                searchBarSection
+                contactListSection
+            }
+            .navigationTitle("Bulk Category Edit")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        saveCategories()
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                initializeCategoryMap()
+            }
+        }
+    }
+    
+    private var categorySelectionSection: some View {
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Set category for your contacts")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                }
+                Text("Personal is the default category for contacts without a specific category")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(allCategoriesSorted, id: \.id) { categoryItem in
+                        categoryButton(for: categoryItem)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.vertical, 16)
+        .background(Color(UIColor.secondarySystemBackground))
+    }
+    
+    @ViewBuilder
+    private func categoryButton(for categoryItem: CategoryItemForBulk) -> some View {
+        if let builtIn = categoryItem.builtInCategory {
+            CategoryBucketButton(
+                title: builtIn.rawValue,
+                icon: builtIn.icon,
+                emoji: builtIn.emoji,
+                isSelected: selectedCategoryId == builtIn.rawValue && selectedCustomCategoryId == nil,
+                count: contactCount(for: builtIn.rawValue, customId: nil)
+            ) {
+                selectedCategoryId = builtIn.rawValue
+                selectedCustomCategoryId = nil
+            }
+        } else if let customCat = categoryItem.customCategory {
+            CategoryBucketButton(
+                title: customCat.name,
+                emoji: customCat.emoji,
+                isSelected: selectedCustomCategoryId == customCat.id,
+                count: contactCount(for: nil, customId: customCat.id)
+            ) {
+                selectedCustomCategoryId = customCat.id
+                selectedCategoryId = nil
+            }
+        }
+    }
+    
+    private var searchBarSection: some View {
+        SearchBar(text: $searchText)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+    }
+    
+    @ViewBuilder
+    private var contactListSection: some View {
+        if contacts.isEmpty {
+            emptyContactsView
+        } else if selectedCategoryId == nil && selectedCustomCategoryId == nil {
+            selectCategoryPromptView
+        } else {
+            contactListView
+        }
+    }
+    
+    private var emptyContactsView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.crop.circle.badge.questionmark")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            Text("No contacts to assign")
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var selectCategoryPromptView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "tag.circle")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            Text("Select a category above, then tap contacts to assign")
+                .font(.headline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var contactListView: some View {
+        List {
+            ForEach(filteredContacts) { contact in
+                ContactCategoryRow(
+                    contact: contact,
+                    selectedCategoryId: selectedCategoryId,
+                    selectedCustomCategoryId: selectedCustomCategoryId,
+                    isSelected: isContactSelected(contact),
+                    onToggle: { isSelected in
+                        if isSelected {
+                            contactCategoryMap[contact.id] = (categoryId: selectedCategoryId, customId: selectedCustomCategoryId)
+                        } else {
+                            contactCategoryMap.removeValue(forKey: contact.id)
+                        }
+                    }
+                )
+            }
+        }
+        .listStyle(.plain)
+    }
+    
+    private func isContactSelected(_ contact: Contact) -> Bool {
+        guard let categoryInfo = contactCategoryMap[contact.id] else { return false }
+        if let selectedCustomId = selectedCustomCategoryId {
+            return categoryInfo.customId == selectedCustomId
+        } else if let selectedCategoryId = selectedCategoryId {
+            return categoryInfo.categoryId == selectedCategoryId && categoryInfo.customId == nil
+        }
+        return false
+    }
+    
+    private func initializeCategoryMap() {
+        for contact in contacts {
+            if let customId = contact.customCategoryId {
+                contactCategoryMap[contact.id] = (categoryId: contact.categoryIdentifier, customId: customId)
+            } else {
+                contactCategoryMap[contact.id] = (categoryId: contact.categoryIdentifier, customId: nil)
+            }
+        }
+    }
+    
+    private func saveCategories() {
+        for contact in contacts {
+            if let categoryInfo = contactCategoryMap[contact.id] {
+                contact.categoryIdentifier = categoryInfo.categoryId ?? ContactCategory.personal.rawValue
+                contact.customCategoryId = categoryInfo.customId
+            }
+        }
+    }
+}
+
+struct CategoryItemForBulk: Identifiable {
+    let id: String
+    let builtInCategory: ContactCategory?
+    let customCategory: CustomCategory?
+    let order: Int
+}
 
 

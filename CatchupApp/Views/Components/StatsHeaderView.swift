@@ -7,37 +7,143 @@ struct StatsHeaderView: View {
     @Binding var showingRecentCatchupsOnly: Bool
     var onOverdueToggle: (() -> Void)? = nil
     var onRecentCatchupsToggle: (() -> Void)? = nil
+    var onRecordCheckIn: (() -> Void)? = nil
+    
+    @State private var leftColumnHeight: CGFloat = 0
+    
+    let goalCatchups = 5
+    
+    // Emoji based on catchup count (0 = sad, 5 = happy)
+    var catchupEmoji: String {
+        switch recentCatchupsCount {
+        case 0: return "😢"
+        case 1: return "😕"
+        case 2: return "😐"
+        case 3: return "🙂"
+        case 4: return "😊"
+        default: return "😄" // 5 or more
+        }
+    }
+    
+    var progress: Double {
+        min(Double(recentCatchupsCount) / Double(goalCatchups), 1.0)
+    }
     
     var body: some View {
-        HStack(spacing: 20) {
-            Button {
-                showingRecentCatchupsOnly.toggle()
-                onRecentCatchupsToggle?()
-            } label: {
-                StatCard(
-                    title: "Catch ups (last 7 days)",
-                    value: "\(recentCatchupsCount)",
-                    icon: "checkmark.circle.fill",
-                    color: .blue,
-                    isSelected: showingRecentCatchupsOnly
-                )
+        HStack(alignment: .top, spacing: 12) {
+            // Left side: Two stacked cards - determines the height
+            VStack(alignment: .leading, spacing: 12) {
+                // Top left card: Catch ups progress
+                Button {
+                    showingRecentCatchupsOnly.toggle()
+                    onRecentCatchupsToggle?()
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Title
+                        Text("Catch ups this week")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        // Progress bar, emoji, and count in a single HStack row
+                        HStack(spacing: 8) {
+                            // Segmented progress bar with fixed width
+                            HStack(spacing: 4) {
+                                ForEach(0..<goalCatchups, id: \.self) { index in
+                                    Capsule()
+                                        .fill(index < recentCatchupsCount ? Color.blue : Color(UIColor.secondarySystemBackground))
+                                        .frame(width: 12, height: 3)
+                                }
+                            }
+                            .frame(width: 80)
+                            
+                            // Emoji
+                            Text(catchupEmoji)
+                                .font(.system(size: 14))
+                            
+                            // Count
+                            Text("\(recentCatchupsCount)/\(goalCatchups)")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(showingRecentCatchupsOnly ? Color.blue.opacity(0.2) : Color.blue.opacity(0.15))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(showingRecentCatchupsOnly ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+                
+                // Bottom left card: Waiting for you (always shown)
+                Button {
+                    showingOverdueOnly.toggle()
+                    onOverdueToggle?()
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("\(overdueCount) connections waiting for you")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(showingOverdueOnly ? Color(UIColor.secondarySystemBackground).opacity(0.8) : Color(UIColor.secondarySystemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(showingOverdueOnly ? Color.blue.opacity(0.5) : Color.clear, lineWidth: 2)
+                    )
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle())
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear.preference(key: VStackHeightPreferenceKey.self, value: geometry.size.height)
+                }
+            )
             
+            // Right card: Record check-in - shorter height
             Button {
-                showingOverdueOnly.toggle()
-                onOverdueToggle?()
+                onRecordCheckIn?()
             } label: {
-                StatCard(
-                    title: "Catchup Overdue",
-                    value: "\(overdueCount)",
-                    icon: "exclamationmark.circle.fill",
-                    color: overdueCount > 0 ? .red : .green,
-                    isSelected: showingOverdueOnly
+                VStack(spacing: 4) {
+                    Text("Record")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    Text("check-in")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .padding(.horizontal)
+                .background(Color.blue)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.clear, lineWidth: 2)
                 )
+                .cornerRadius(12)
             }
             .buttonStyle(PlainButtonStyle())
+            .frame(maxWidth: .infinity)
+            .frame(height: leftColumnHeight > 0 ? leftColumnHeight * 0.7 : nil)
         }
+        .onPreferenceChange(VStackHeightPreferenceKey.self) { height in
+            leftColumnHeight = height
+        }
+    }
+}
+
+// Preference key to track VStack height
+struct VStackHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 

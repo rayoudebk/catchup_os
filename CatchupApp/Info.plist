@@ -20,6 +20,8 @@
 	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -48,17 +50,16 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSContactsUsageDescription</key>
-	<string>We need access to your contacts to help you stay connected</string>
+	<string>We need access to all your contacts to help you stay connected. Please select "Share All Contacts" to enable the full experience.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>We'll send you gentle reminders when it's time to catch up with your contacts</string>
+	<string>We&apos;ll send you gentle reminders when it&apos;s time to catch up with your contacts</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We'd like to link photos with your contacts to help you remember memories together</string>
+	<string>We&apos;d like to link photos with your contacts to help you remember memories together</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We'd like to access your photos to create photo memories with contacts</string>
+	<string>We&apos;d like to access your photos to create photo memories with contacts</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need microphone access to enable voice-to-text for your check-in notes</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>We use speech recognition to help you quickly record check-in notes by voice</string>
 </dict>
 </plist>
-

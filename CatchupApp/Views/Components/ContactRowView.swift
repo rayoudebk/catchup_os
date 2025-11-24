@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ContactRowView: View {
     @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
@@ -13,6 +14,18 @@ struct ContactRowView: View {
         HStack(spacing: 16) {
             // Avatar
             ZStack {
+                if let imageData = contact.profileImageData,
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(contact.isOverdue ? Color.red : Color.blue, lineWidth: 2)
+                        )
+                } else {
                 Circle()
                     .fill(contact.isOverdue ? Color.red.opacity(0.2) : Color.blue.opacity(0.2))
                     .frame(width: 50, height: 50)
@@ -21,6 +34,7 @@ struct ContactRowView: View {
                     .font(.title3)
                     .fontWeight(.semibold)
                     .foregroundColor(contact.isOverdue ? .red : .blue)
+                }
             }
             
             // Contact Info
@@ -45,8 +59,8 @@ struct ContactRowView: View {
                             .foregroundColor(.secondary)
                     } else {
                         Image(systemName: categoryInfo.icon)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     }
                     
                     Text(categoryInfo.name)

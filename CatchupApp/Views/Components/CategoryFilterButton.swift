@@ -24,9 +24,9 @@ struct CategoryFilterButton: View {
                     .fontWeight(isSelected ? .semibold : .regular)
                 
                 if count > 0 {
-                    Text("(\(count))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Text("(\(count))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
             }
             .padding(.horizontal, 16)
