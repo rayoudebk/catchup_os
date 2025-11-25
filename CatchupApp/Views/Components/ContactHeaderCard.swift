@@ -114,15 +114,20 @@ struct CheckInStatusView: View {
     var body: some View {
         VStack(spacing: 8) {
             if contact.isOverdue {
-                Label("Overdue - Time to reach out!", systemImage: "exclamationmark.circle.fill")
-                    .font(.headline)
-                    .foregroundColor(.red)
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                    Text("Waiting for you")
+                        .font(.headline)
+                        .foregroundColor(.blue)
+                }
             } else if let nextDate = contact.nextCheckInDate {
                 VStack(spacing: 4) {
                     Text("Next check-in")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    Text(nextDate, style: .relative)
+                    Text(nextDate.relativeTimeInMinutes())
                         .font(.headline)
                         .foregroundColor(.green)
                 }

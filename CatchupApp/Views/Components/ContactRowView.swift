@@ -2,16 +2,73 @@ import SwiftUI
 import SwiftData
 import UIKit
 
+extension Date {
+    func relativeTimeInMinutes() -> String {
+        let now = Date()
+        let timeInterval = now.timeIntervalSince(self)
+        let minutes = Int(abs(timeInterval) / 60)
+        let hours = minutes / 60
+        let days = hours / 24
+        
+        let isFuture = timeInterval < 0
+        
+        if isFuture {
+            // Future date
+            if minutes < 1 {
+                return "in a moment"
+            } else if minutes < 60 {
+                return "in \(minutes) min"
+            } else if hours < 24 {
+                return "in \(hours) hr"
+            } else if days < 7 {
+                return "in \(days) day\(days == 1 ? "" : "s")"
+            } else {
+                let weeks = days / 7
+                if weeks < 4 {
+                    return "in \(weeks) week\(weeks == 1 ? "" : "s")"
+                } else {
+                    let months = days / 30
+                    if months < 12 {
+                        return "in \(months) month\(months == 1 ? "" : "s")"
+                    } else {
+                        let years = days / 365
+                        return "in \(years) year\(years == 1 ? "" : "s")"
+                    }
+                }
+            }
+        } else {
+            // Past date
+            if minutes < 1 {
+                return "just now"
+            } else if minutes < 60 {
+                return "\(minutes) min ago"
+            } else if hours < 24 {
+                return "\(hours) hr ago"
+            } else if days < 7 {
+                return "\(days) day\(days == 1 ? "" : "s") ago"
+            } else {
+                let weeks = days / 7
+                if weeks < 4 {
+                    return "\(weeks) week\(weeks == 1 ? "" : "s") ago"
+                } else {
+                    let months = days / 30
+                    if months < 12 {
+                        return "\(months) month\(months == 1 ? "" : "s") ago"
+                    } else {
+                        let years = days / 365
+                        return "\(years) year\(years == 1 ? "" : "s") ago"
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ContactRowView: View {
-    @Query(sort: \CustomCategory.order) private var customCategories: [CustomCategory]
     let contact: Contact
     
-    var categoryInfo: CategoryInfo {
-        contact.categoryInfo(customCategories: customCategories)
-    }
-    
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(alignment: .top, spacing: 16) {
             // Avatar
             ZStack {
                 if let imageData = contact.profileImageData,
@@ -39,7 +96,7 @@ struct ContactRowView: View {
             
             // Contact Info
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(alignment: .firstTextBaseline) {
                     Text(contact.name)
                         .font(.headline)
                     
@@ -47,54 +104,31 @@ struct ContactRowView: View {
                         Image(systemName: "star.fill")
                             .font(.caption)
                             .foregroundColor(.yellow)
+                            .padding(.leading, 4)
                     }
                     
                     Spacer()
-                }
-                
-                HStack(spacing: 8) {
-                    if !categoryInfo.emoji.isEmpty {
-                        Text(categoryInfo.emoji)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Image(systemName: categoryInfo.icon)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
                     
-                    Text(categoryInfo.name)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("·")
-                        .foregroundColor(.secondary)
-                    
+                    // Frequency aligned with chevron
                     Text("Every \(contact.frequencyDays) days")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
-                // Status
+                // Status on second line
                 HStack(spacing: 4) {
                     if contact.isOverdue {
                         Image(systemName: "exclamationmark.circle.fill")
                             .font(.caption)
-                            .foregroundColor(.red)
-                        Text("Overdue")
+                            .foregroundColor(.blue)
+                        Text("Waiting for you")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.red)
+                            .foregroundColor(.blue)
                     } else if let lastCheckIn = contact.lastCheckInDate {
-                        Text("Last: \(lastCheckIn, style: .relative)")
+                        Text("Last: \(lastCheckIn.relativeTimeInMinutes())")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
-                        if contact.daysUntilNextCheckIn > 0 {
-                            Text("· \(contact.daysUntilNextCheckIn)d left")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
                     } else {
                         Text("No check-ins yet")
                             .font(.caption)
@@ -103,7 +137,7 @@ struct ContactRowView: View {
                 }
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
     }
 }
 

@@ -32,13 +32,12 @@
 		34715C172EBBC00F009928AA /* CustomCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C172EBBC010009928AA /* CustomCategory.swift */; };
 		34715C182EBBC011009928AA /* CategoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C182EBBC012009928AA /* CategoryManagementView.swift */; };
 		34715C192EBBC013009928AA /* CategoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C192EBBC014009928AA /* CategoryManager.swift */; };
+		34715C212EBBD001009928AA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 34715C202EBBD000009928AA /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		34715BBC2EBBA0E7009928AA /* catchup_os.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = catchup_os.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		34715BCC2EBBA149009928AA /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
-		34715BCD2EBBA149009928AA /* Catchup.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Catchup.xcodeproj; sourceTree = "<group>"; };
-		34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = catchup_os.xcodeproj; sourceTree = "<group>"; };
 		34715BCF2EBBA149009928AA /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		34715BD12EBBA149009928AA /* CheckIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckIn.swift; sourceTree = "<group>"; };
 		34715BD22EBBA149009928AA /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
@@ -51,7 +50,6 @@
 		34715BDB2EBBA149009928AA /* ContactDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactDetailView.swift; sourceTree = "<group>"; };
 		34715BDC2EBBA149009928AA /* EditContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditContactView.swift; sourceTree = "<group>"; };
 		34715BDD2EBBA149009928AA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		34715BDF2EBBA149009928AA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		34715BE02EBBA149009928AA /* CatchupApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchupApp.swift; sourceTree = "<group>"; };
 		34715BE12EBBA149009928AA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		34715BE22EBBA149009928AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -73,15 +71,8 @@
 		34715C172EBBC010009928AA /* CustomCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomCategory.swift; sourceTree = "<group>"; };
 		34715C182EBBC012009928AA /* CategoryManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementView.swift; sourceTree = "<group>"; };
 		34715C192EBBC014009928AA /* CategoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManager.swift; sourceTree = "<group>"; };
+		34715C202EBBD000009928AA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		34715BBE2EBBA0E7009928AA /* catchup_os */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = catchup_os;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		34715BB92EBBA0E7009928AA /* Frameworks */ = {
@@ -97,17 +88,14 @@
 		34715BB32EBBA0E7009928AA = {
 			isa = PBXGroup;
 			children = (
-				34715BCC2EBBA149009928AA /* ARCHITECTURE.md */,
-				34715BCD2EBBA149009928AA /* Catchup.xcodeproj */,
-				34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */,
 				34715BE32EBBA149009928AA /* CatchupApp */,
 				34715BE62EBBA149009928AA /* CatchupWidget */,
+				34715BBD2EBBA0E7009928AA /* Products */,
+				34715BCC2EBBA149009928AA /* ARCHITECTURE.md */,
 				34715BE72EBBA149009928AA /* Package.swift */,
 				34715BE82EBBA149009928AA /* QUICK_START.md */,
 				34715BE92EBBA149009928AA /* README.md */,
 				34715BEA2EBBA149009928AA /* SETUP_GUIDE.md */,
-				34715BBE2EBBA0E7009928AA /* catchup_os */,
-				34715BBD2EBBA0E7009928AA /* Products */,
 			);
 			sourceTree = "<group>";
 		};
@@ -175,10 +163,10 @@
 		34715BE32EBBA149009928AA /* CatchupApp */ = {
 			isa = PBXGroup;
 			children = (
+				34715C202EBBD000009928AA /* Assets.xcassets */,
 				34715BD02EBBA149009928AA /* Managers */,
 				34715BD32EBBA149009928AA /* Models */,
 				34715BDE2EBBA149009928AA /* Views */,
-				34715BDF2EBBA149009928AA /* Assets.xcassets */,
 				34715BE02EBBA149009928AA /* CatchupApp.swift */,
 				34715BE12EBBA149009928AA /* ContentView.swift */,
 				34715BE22EBBA149009928AA /* Info.plist */,
@@ -195,16 +183,6 @@
 			path = CatchupWidget;
 			sourceTree = "<group>";
 		};
-		34715BEB2EBBA149009928AA /* Products */ = {
-			isa = PBXGroup;
-			name = Products;
-			sourceTree = "<group>";
-		};
-		34715BED2EBBA149009928AA /* Products */ = {
-			isa = PBXGroup;
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -219,9 +197,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				34715BBE2EBBA0E7009928AA /* catchup_os */,
 			);
 			name = catchup_os;
 			packageProductDependencies = (
@@ -257,16 +232,6 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 34715BBD2EBBA0E7009928AA /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = 34715BEB2EBBA149009928AA /* Products */;
-					ProjectRef = 34715BCD2EBBA149009928AA /* Catchup.xcodeproj */;
-				},
-				{
-					ProductGroup = 34715BED2EBBA149009928AA /* Products */;
-					ProjectRef = 34715BCE2EBBA149009928AA /* catchup_os.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				34715BBB2EBBA0E7009928AA /* catchup_os */,
@@ -279,6 +244,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				34715C212EBBD001009928AA /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -445,7 +411,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = Q25X2WD6VV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -484,7 +450,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = Q25X2WD6VV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

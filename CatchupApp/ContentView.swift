@@ -10,6 +10,7 @@ struct ContentView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showingAddContact = false
     @State private var searchText = ""
+    @State private var isSearchActive = false
     @State private var selectedCategoryIdentifier: String? // For built-in categories
     @State private var selectedCustomCategoryId: UUID? // For custom categories
     @State private var showingOverdueOnly = false
@@ -155,6 +156,43 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Custom header with greeting and action buttons
+                HStack {
+                    Text(greeting)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 12) {
+                        NavigationLink(destination: SettingsView()) {
+                            Image(systemName: "gearshape")
+                                .font(.title3)
+                        }
+                        
+                        Menu {
+                            Button {
+                                isAddingFromOnboarding = false
+                                showingAddContact = true
+                            } label: {
+                                Label("Add contact", systemImage: "person.badge.plus")
+                            }
+                            
+                            Button {
+                                showingRecordCheckInSheet = true
+                            } label: {
+                                Label("Record check-in", systemImage: "checkmark.circle")
+                            }
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, isSearchActive ? 20 : -40)
+                .padding(.bottom, 4)
+                
                 // Stats Header - Always show
                     StatsHeaderView(
                     overdueCount: overdueCount,
@@ -174,9 +212,6 @@ struct ContentView: View {
                             selectedCustomCategoryId = nil
                             showingOverdueOnly = false
                         }
-                    },
-                    onRecordCheckIn: {
-                        showingRecordCheckInSheet = true
                     }
                     )
                     .padding()
@@ -257,26 +292,10 @@ struct ContentView: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle(greeting)
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search contacts")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: SettingsView()) {
-                        Image(systemName: "gearshape")
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        isAddingFromOnboarding = false
-                        showingAddContact = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                    }
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .searchable(text: $searchText, isPresented: $isSearchActive, prompt: "Search contacts")
             .sheet(isPresented: $showingAddContact) {
                 AddContactView(isFromOnboarding: isAddingFromOnboarding)
             }
@@ -458,49 +477,28 @@ private struct OnboardingSection: View {
 struct CategoryBannerView: View {
     let onDismiss: () -> Void
     let onAddCategory: () -> Void
-    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
-        HStack {
-            Button(action: onAddCategory) {
-                HStack {
-                    Text("Add categories to organize contacts")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
+        Button(action: onAddCategory) {
+            HStack {
+                Text("Add categories to organize contacts")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Spacer()
+                
+                // Dismiss button inside the banner
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                         .font(.caption)
                 }
-                .padding()
-                .background(Color(UIColor.secondarySystemBackground).opacity(0.5))
-                .cornerRadius(12)
+                .buttonStyle(PlainButtonStyle())
             }
-            .buttonStyle(PlainButtonStyle())
+            .padding()
+            .background(Color(UIColor.secondarySystemBackground).opacity(0.5))
+            .cornerRadius(12)
         }
-        .offset(x: dragOffset)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if value.translation.width < 0 {
-                        dragOffset = value.translation.width
-                    }
-                }
-                .onEnded { value in
-                    if value.translation.width < -100 {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = -UIScreen.main.bounds.width
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            onDismiss()
-                        }
-                    } else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            dragOffset = 0
-                        }
-                    }
-                }
-        )
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

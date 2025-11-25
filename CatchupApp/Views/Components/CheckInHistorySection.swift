@@ -176,7 +176,7 @@ struct CheckInContent: View {
                 }
                 
                 HStack {
-                    Text(checkIn.date, style: .relative)
+                    Text(checkIn.date.relativeTimeInMinutes())
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     

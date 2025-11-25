@@ -99,7 +99,7 @@ struct CheckInSheetView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         
-                        if let lastAISummary {
+                        if lastAISummary != nil {
                             Text("Apple Intelligence draft applied")
                                 .font(.caption)
                                 .foregroundColor(.green)
@@ -241,6 +241,7 @@ struct LanguageSelectorView: View {
         let supportedLocales = SFSpeechRecognizer.supportedLocales()
         
         var languages: [(identifier: String, displayName: String)] = []
+        var languageCodesAdded = Set<String>()
         
         // Get languages from user's preferred languages that are supported
         for preferredLang in userPreferredLanguages {
@@ -255,11 +256,30 @@ struct LanguageSelectorView: View {
                 
                 if !languages.contains(where: { $0.identifier == identifier }) {
                     languages.append((identifier: identifier, displayName: displayName))
+                    languageCodesAdded.insert(languageCode.lowercased())
                 }
             }
         }
         
-        // If no languages found, add common ones
+        // Always add common languages if not already present
+        let commonLanguages = [
+            ("en-US", "EN", "en"),
+            ("fr-FR", "FR", "fr"),
+            ("es-ES", "ES", "es"),
+            ("pt-PT", "PT", "pt")
+        ]
+        
+        for (identifier, displayName, code) in commonLanguages {
+            if !languageCodesAdded.contains(code) {
+                let locale = Locale(identifier: identifier)
+                if supportedLocales.contains(locale) {
+                    languages.append((identifier: identifier, displayName: displayName))
+                    languageCodesAdded.insert(code)
+                }
+            }
+        }
+        
+        // If still no languages found, add common ones anyway
         if languages.isEmpty {
             languages = [
                 ("en-US", "EN"),
@@ -323,6 +343,9 @@ class SpeechRecognizer {
     }
     
     private func record(completion: @escaping (String) -> Void) {
+        // Stop and clean up any existing recording first
+        stopRecording()
+        
         // Cancel previous task if any
         recognitionTask?.cancel()
         recognitionTask = nil
@@ -337,6 +360,18 @@ class SpeechRecognizer {
         recognitionRequest.shouldReportPartialResults = true
         
         let inputNode = audioEngine.inputNode
+        
+        // Ensure engine is stopped and tap is removed before installing new one
+        // Stopping the engine automatically removes taps
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        
+        // Remove tap if it exists (removeTap doesn't throw, but check if engine is running first)
+        if audioEngine.isRunning {
+            inputNode.removeTap(onBus: 0)
+        }
+        
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
             if let result = result {
                 let transcription = result.bestTranscription.formattedString
@@ -361,8 +396,18 @@ class SpeechRecognizer {
     }
     
     func stopRecording() {
-        audioEngine.stop()
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         recognitionRequest?.endAudio()
+        
+        // Remove tap and clean up
+        let inputNode = audioEngine.inputNode
+        inputNode.removeTap(onBus: 0)
+        
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        recognitionRequest = nil
     }
 }
 
@@ -472,7 +517,7 @@ struct RecordCheckInSheetView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             
-                        if let lastAISummary {
+                        if lastAISummary != nil {
                             Text("Apple Intelligence draft applied")
                                 .font(.caption)
                                 .foregroundColor(.green)
