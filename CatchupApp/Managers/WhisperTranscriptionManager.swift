@@ -1,5 +1,6 @@
 import Foundation
 import Speech
+import Combine
 
 enum WhisperModelVariant: String, CaseIterable, Codable {
     case largeV3 = "large-v3"
