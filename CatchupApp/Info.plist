@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Contacts+Notes</string>
+	<string>Contact+Notes</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -50,16 +50,12 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSContactsUsageDescription</key>
-	<string>We need access to all your contacts to help you stay connected. Please select "Share All Contacts" to enable the full experience.</string>
+	<string>We use your contacts to organize private notes by person.</string>
 	<key>NSUserNotificationsUsageDescription</key>
-	<string>We&apos;ll send you gentle reminders when it&apos;s time to catch up with your contacts</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We&apos;d like to link photos with your contacts to help you remember memories together</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We&apos;d like to access your photos to create photo memories with contacts</string>
+	<string>We send annual birthday reminders for contacts with birthdays.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>We need microphone access to enable voice-to-text for your check-in notes</string>
+	<string>Microphone access lets you dictate contact notes with on-device transcription.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>We use speech recognition to help you quickly record check-in notes by voice</string>
+	<string>Speech recognition is used locally to transcribe your recorded notes.</string>
 </dict>
 </plist>

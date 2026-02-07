@@ -1,70 +1,78 @@
 import Foundation
 import UserNotifications
 
-class NotificationManager {
-    static let shared = NotificationManager()
-    
+protocol BirthdayReminderScheduling {
+    func scheduleAnnual(for contact: Contact) throws
+    func cancel(for contact: Contact)
+}
+
+final class BirthdayReminderManager: BirthdayReminderScheduling {
+    static let shared = BirthdayReminderManager()
+
     private init() {}
-    
-    func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-            if granted {
-                print("Notification permission granted")
-            } else if let error = error {
-                print("Error requesting notification permission: \(error.localizedDescription)")
-            }
-        }
+
+    private func identifier(for contact: Contact) -> String {
+        "birthday-\(contact.id.uuidString)"
     }
-    
-    func scheduleNotification(for contact: Contact) {
-        // Remove existing notifications for this contact
-        cancelNotification(for: contact)
-        
-        guard let nextCheckInDate = contact.nextCheckInDate else {
+
+    func requestAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
+    }
+
+    func scheduleAnnual(for contact: Contact) throws {
+        cancel(for: contact)
+
+        guard let birthday = contact.birthday else {
             return
         }
-        
+
+        let next = nextBirthday(from: birthday)
+        let components = Calendar.current.dateComponents([.month, .day, .hour, .minute], from: next)
+
         let content = UNMutableNotificationContent()
-        content.title = "Time to catch up!"
-        content.body = "It's been a while since you connected with \(contact.name)"
+        content.title = "Birthday reminder"
+        content.body = "Today is \(contact.name)'s birthday"
         content.sound = .default
-        content.badge = 1
-        
-        // Create date components for the notification
-        let components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
-            from: nextCheckInDate
-        )
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(
-            identifier: contact.id.uuidString,
+            identifier: identifier(for: contact),
             content: content,
             trigger: trigger
         )
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error.localizedDescription)")
-            }
-        }
+
+        UNUserNotificationCenter.current().add(request)
     }
-    
-    func cancelNotification(for contact: Contact) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(
-            withIdentifiers: [contact.id.uuidString]
-        )
+
+    func cancel(for contact: Contact) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier(for: contact)])
     }
-    
-    func cancelAllNotifications() {
+
+    func cancelAllBirthdayNotifications() {
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
     }
-    
-    func getPendingNotifications(completion: @escaping ([UNNotificationRequest]) -> Void) {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            completion(requests)
+
+    func refreshAll(contacts: [Contact]) {
+        for contact in contacts {
+            try? scheduleAnnual(for: contact)
         }
     }
-}
 
+    private func nextBirthday(from birthday: Date) -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+
+        var bday = calendar.dateComponents([.month, .day], from: birthday)
+        bday.hour = 9
+        bday.minute = 0
+
+        var next = calendar.date(from: bday) ?? now
+
+        if next < now {
+            bday.year = calendar.component(.year, from: now) + 1
+            next = calendar.date(from: bday) ?? now
+        }
+
+        return next
+    }
+}

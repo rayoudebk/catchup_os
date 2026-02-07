@@ -9,29 +9,17 @@
 /* Begin PBXBuildFile section */
 		34715BEF2EBBA149009928AA /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDD2EBBA149009928AA /* SettingsView.swift */; };
 		34715BF02EBBA149009928AA /* EditContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDC2EBBA149009928AA /* EditContactView.swift */; };
-		34715BF12EBBA149009928AA /* CatchupWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE42EBBA149009928AA /* CatchupWidget.swift */; };
 		34715BF32EBBA149009928AA /* ContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDB2EBBA149009928AA /* ContactDetailView.swift */; };
 		34715BF42EBBA149009928AA /* AddContactView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD92EBBA149009928AA /* AddContactView.swift */; };
 		34715BF52EBBA149009928AA /* CatchupApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE02EBBA149009928AA /* CatchupApp.swift */; };
 		34715BF62EBBA149009928AA /* CheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD12EBBA149009928AA /* CheckIn.swift */; };
-		34715BF72EBBA149009928AA /* StatsHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD72EBBA149009928AA /* StatsHeaderView.swift */; };
 		34715BF82EBBA149009928AA /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD62EBBA149009928AA /* EmptyStateView.swift */; };
-		34715BF92EBBA149009928AA /* CategoryFilterButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD42EBBA149009928AA /* CategoryFilterButton.swift */; };
 		34715BFB2EBBA149009928AA /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD22EBBA149009928AA /* Contact.swift */; };
 		34715BFC2EBBA149009928AA /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BCF2EBBA149009928AA /* NotificationManager.swift */; };
-		34715BFD2EBBA149009928AA /* CheckInSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BDA2EBBA149009928AA /* CheckInSheetView.swift */; };
 		34715BFE2EBBA149009928AA /* ContactRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BD52EBBA149009928AA /* ContactRowView.swift */; };
 		34715C072EBBA58F009928AA /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715BE12EBBA149009928AA /* ContentView.swift */; };
-		34715C0E2EBBAE83009928AA /* PhotoCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */; };
-		34715C0F2EBBAE83009928AA /* PhotosManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C0D2EBBAE83009928AA /* PhotosManager.swift */; };
-		34715C102EBBC001009928AA /* GiftIdeaSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C102EBBC002009928AA /* GiftIdeaSection.swift */; };
-		34715C122EBBC005009928AA /* RemindersSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C122EBBC006009928AA /* RemindersSection.swift */; };
-		34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C132EBBC008009928AA /* ContactHeaderCard.swift */; };
-		34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C142EBBC00A009928AA /* CheckInHistorySection.swift */; };
-		34715C162EBBC00E009928AA /* PhotosTogetherSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */; };
-		34715C172EBBC00F009928AA /* CustomCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C172EBBC010009928AA /* CustomCategory.swift */; };
-		34715C182EBBC011009928AA /* CategoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C182EBBC012009928AA /* CategoryManagementView.swift */; };
 		34715C192EBBC013009928AA /* CategoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34715C192EBBC014009928AA /* CategoryManager.swift */; };
+		A1B2C3D52F00111100000001 /* WhisperTranscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00111100000001 /* WhisperTranscriptionManager.swift */; };
 		34715C212EBBD001009928AA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 34715C202EBBD000009928AA /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -41,37 +29,22 @@
 		34715BCF2EBBA149009928AA /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		34715BD12EBBA149009928AA /* CheckIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckIn.swift; sourceTree = "<group>"; };
 		34715BD22EBBA149009928AA /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
-		34715BD42EBBA149009928AA /* CategoryFilterButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryFilterButton.swift; sourceTree = "<group>"; };
 		34715BD52EBBA149009928AA /* ContactRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactRowView.swift; sourceTree = "<group>"; };
 		34715BD62EBBA149009928AA /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
-		34715BD72EBBA149009928AA /* StatsHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsHeaderView.swift; sourceTree = "<group>"; };
 		34715BD92EBBA149009928AA /* AddContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddContactView.swift; sourceTree = "<group>"; };
-		34715BDA2EBBA149009928AA /* CheckInSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInSheetView.swift; sourceTree = "<group>"; };
 		34715BDB2EBBA149009928AA /* ContactDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactDetailView.swift; sourceTree = "<group>"; };
 		34715BDC2EBBA149009928AA /* EditContactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditContactView.swift; sourceTree = "<group>"; };
 		34715BDD2EBBA149009928AA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		34715BE02EBBA149009928AA /* CatchupApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchupApp.swift; sourceTree = "<group>"; };
 		34715BE12EBBA149009928AA /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		34715BE22EBBA149009928AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		34715BE42EBBA149009928AA /* CatchupWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatchupWidget.swift; sourceTree = "<group>"; };
-		34715BE52EBBA149009928AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		34715BE72EBBA149009928AA /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		34715BE82EBBA149009928AA /* QUICK_START.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICK_START.md; sourceTree = "<group>"; };
 		34715BE92EBBA149009928AA /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		34715BEA2EBBA149009928AA /* SETUP_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SETUP_GUIDE.md; sourceTree = "<group>"; };
-		34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoCarouselView.swift; sourceTree = "<group>"; };
-		34715C0D2EBBAE83009928AA /* PhotosManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosManager.swift; sourceTree = "<group>"; };
-		34715C102EBBC002009928AA /* GiftIdeaSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftIdeaSection.swift; sourceTree = "<group>"; };
-		34715C112EBBC004009928AA /* PhotoMemoriesSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoMemoriesSection.swift; sourceTree = "<group>"; };
-		34715C122EBBC006009928AA /* RemindersSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersSection.swift; sourceTree = "<group>"; };
-		34715C132EBBC008009928AA /* ContactHeaderCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactHeaderCard.swift; sourceTree = "<group>"; };
-		34715C142EBBC00A009928AA /* CheckInHistorySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInHistorySection.swift; sourceTree = "<group>"; };
-		34715C152EBBC00C009928AA /* ContactInfoSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactInfoSection.swift; sourceTree = "<group>"; };
-		34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTogetherSection.swift; sourceTree = "<group>"; };
-		34715C172EBBC010009928AA /* CustomCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomCategory.swift; sourceTree = "<group>"; };
-		34715C182EBBC012009928AA /* CategoryManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementView.swift; sourceTree = "<group>"; };
 		34715C192EBBC014009928AA /* CategoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManager.swift; sourceTree = "<group>"; };
 		34715C202EBBD000009928AA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A1B2C3D42F00111100000001 /* WhisperTranscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhisperTranscriptionManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,7 +62,6 @@
 			isa = PBXGroup;
 			children = (
 				34715BE32EBBA149009928AA /* CatchupApp */,
-				34715BE62EBBA149009928AA /* CatchupWidget */,
 				34715BBD2EBBA0E7009928AA /* Products */,
 				34715BCC2EBBA149009928AA /* ARCHITECTURE.md */,
 				34715BE72EBBA149009928AA /* Package.swift */,
@@ -111,8 +83,8 @@
 			isa = PBXGroup;
 			children = (
 				34715BCF2EBBA149009928AA /* NotificationManager.swift */,
-				34715C0D2EBBAE83009928AA /* PhotosManager.swift */,
 				34715C192EBBC014009928AA /* CategoryManager.swift */,
+				A1B2C3D42F00111100000001 /* WhisperTranscriptionManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -122,7 +94,6 @@
 			children = (
 				34715BD12EBBA149009928AA /* CheckIn.swift */,
 				34715BD22EBBA149009928AA /* Contact.swift */,
-				34715C172EBBC010009928AA /* CustomCategory.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -130,18 +101,8 @@
 		34715BD82EBBA149009928AA /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				34715C0C2EBBAE83009928AA /* PhotoCarouselView.swift */,
-				34715BD42EBBA149009928AA /* CategoryFilterButton.swift */,
 				34715BD52EBBA149009928AA /* ContactRowView.swift */,
 				34715BD62EBBA149009928AA /* EmptyStateView.swift */,
-				34715BD72EBBA149009928AA /* StatsHeaderView.swift */,
-				34715C102EBBC002009928AA /* GiftIdeaSection.swift */,
-				34715C112EBBC004009928AA /* PhotoMemoriesSection.swift */,
-				34715C122EBBC006009928AA /* RemindersSection.swift */,
-				34715C132EBBC008009928AA /* ContactHeaderCard.swift */,
-				34715C142EBBC00A009928AA /* CheckInHistorySection.swift */,
-				34715C152EBBC00C009928AA /* ContactInfoSection.swift */,
-				34715C162EBBC00D009928AA /* PhotosTogetherSection.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -151,11 +112,9 @@
 			children = (
 				34715BD82EBBA149009928AA /* Components */,
 				34715BD92EBBA149009928AA /* AddContactView.swift */,
-				34715BDA2EBBA149009928AA /* CheckInSheetView.swift */,
 				34715BDB2EBBA149009928AA /* ContactDetailView.swift */,
 				34715BDC2EBBA149009928AA /* EditContactView.swift */,
 				34715BDD2EBBA149009928AA /* SettingsView.swift */,
-				34715C182EBBC012009928AA /* CategoryManagementView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -172,15 +131,6 @@
 				34715BE22EBBA149009928AA /* Info.plist */,
 			);
 			path = CatchupApp;
-			sourceTree = "<group>";
-		};
-		34715BE62EBBA149009928AA /* CatchupWidget */ = {
-			isa = PBXGroup;
-			children = (
-				34715BE42EBBA149009928AA /* CatchupWidget.swift */,
-				34715BE52EBBA149009928AA /* Info.plist */,
-			);
-			path = CatchupWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -258,28 +208,16 @@
 				34715C072EBBA58F009928AA /* ContentView.swift in Sources */,
 				34715BEF2EBBA149009928AA /* SettingsView.swift in Sources */,
 				34715BF02EBBA149009928AA /* EditContactView.swift in Sources */,
-				34715BF12EBBA149009928AA /* CatchupWidget.swift in Sources */,
 				34715BF32EBBA149009928AA /* ContactDetailView.swift in Sources */,
 				34715BF42EBBA149009928AA /* AddContactView.swift in Sources */,
 				34715BF52EBBA149009928AA /* CatchupApp.swift in Sources */,
 				34715BF62EBBA149009928AA /* CheckIn.swift in Sources */,
-				34715BF72EBBA149009928AA /* StatsHeaderView.swift in Sources */,
 				34715BF82EBBA149009928AA /* EmptyStateView.swift in Sources */,
-				34715BF92EBBA149009928AA /* CategoryFilterButton.swift in Sources */,
-				34715C0E2EBBAE83009928AA /* PhotoCarouselView.swift in Sources */,
-				34715C0F2EBBAE83009928AA /* PhotosManager.swift in Sources */,
+				34715C192EBBC013009928AA /* CategoryManager.swift in Sources */,
+				A1B2C3D52F00111100000001 /* WhisperTranscriptionManager.swift in Sources */,
 				34715BFB2EBBA149009928AA /* Contact.swift in Sources */,
 				34715BFC2EBBA149009928AA /* NotificationManager.swift in Sources */,
-				34715BFD2EBBA149009928AA /* CheckInSheetView.swift in Sources */,
 				34715BFE2EBBA149009928AA /* ContactRowView.swift in Sources */,
-				34715C102EBBC001009928AA /* GiftIdeaSection.swift in Sources */,
-				34715C122EBBC005009928AA /* RemindersSection.swift in Sources */,
-				34715C132EBBC007009928AA /* ContactHeaderCard.swift in Sources */,
-				34715C142EBBC009009928AA /* CheckInHistorySection.swift in Sources */,
-				34715C162EBBC00E009928AA /* PhotosTogetherSection.swift in Sources */,
-				34715C172EBBC00F009928AA /* CustomCategory.swift in Sources */,
-				34715C182EBBC011009928AA /* CategoryManagementView.swift in Sources */,
-				34715C192EBBC013009928AA /* CategoryManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -416,12 +354,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
-				INFOPLIST_KEY_NSContactsUsageDescription = "We need access to your contacts to help you stay connected";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access to enable voice-to-text for your check-in notes";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We'd like to access your photos to create photo memories with contacts";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We'd like to link photos with your contacts to help you remember memories together";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to help you quickly record check-in notes by voice";
-				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "We'll send you gentle reminders when it's time to catch up with your contacts";
+				INFOPLIST_KEY_NSContactsUsageDescription = "We use your contacts to organize private notes by person.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access lets you dictate contact notes with on-device transcription.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speech recognition is used locally to transcribe your recorded notes.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "We send annual birthday reminders for contacts with birthdays.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -455,12 +391,10 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
-				INFOPLIST_KEY_NSContactsUsageDescription = "We need access to your contacts to help you stay connected";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need microphone access to enable voice-to-text for your check-in notes";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We'd like to access your photos to create photo memories with contacts";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We'd like to link photos with your contacts to help you remember memories together";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "We use speech recognition to help you quickly record check-in notes by voice";
-				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "We'll send you gentle reminders when it's time to catch up with your contacts";
+				INFOPLIST_KEY_NSContactsUsageDescription = "We use your contacts to organize private notes by person.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access lets you dictate contact notes with on-device transcription.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Speech recognition is used locally to transcribe your recorded notes.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "We send annual birthday reminders for contacts with birthdays.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

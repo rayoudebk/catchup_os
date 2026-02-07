@@ -1,86 +1,40 @@
 import Foundation
-import Combine
 import SwiftUI
 
-class CategoryManager: ObservableObject {
+struct SocialCircleDefinition: Identifiable {
+    let circle: SocialCircle
+    let title: String
+    let icon: String
+    let color: Color
+    let order: Int
+
+    var id: SocialCircle { circle }
+}
+
+final class CategoryManager {
     static let shared = CategoryManager()
-    
-    private let disabledCategoriesKey = "disabledCategories"
-    private let builtInCategoryOrderKey = "builtInCategoryOrder" // Dictionary: category name -> order
-    
+
     private init() {}
-    
-    @Published var refreshTrigger = UUID()
-    
-    var disabledCategories: Set<String> {
-        get {
-            Set(UserDefaults.standard.stringArray(forKey: disabledCategoriesKey) ?? [])
-        }
-        set {
-            UserDefaults.standard.set(Array(newValue), forKey: disabledCategoriesKey)
-            refreshTrigger = UUID()
-        }
+
+    private let definitions: [SocialCircleDefinition] = [
+        SocialCircleDefinition(circle: .personal, title: "Personal", icon: "person.crop.circle", color: .blue, order: 0),
+        SocialCircleDefinition(circle: .family, title: "Family", icon: "house", color: .pink, order: 1),
+        SocialCircleDefinition(circle: .friends, title: "Friends", icon: "person.3", color: .green, order: 2),
+        SocialCircleDefinition(circle: .work, title: "Work", icon: "briefcase", color: .orange, order: 3),
+        SocialCircleDefinition(circle: .other, title: "Other", icon: "square.grid.2x2", color: .gray, order: 4)
+    ]
+
+    var all: [SocialCircleDefinition] {
+        definitions.sorted { $0.order < $1.order }
     }
-    
-    // Store order for built-in categories as dictionary: category name -> order integer
-    var builtInCategoryOrder: [String: Int] {
-        get {
-            if let data = UserDefaults.standard.data(forKey: builtInCategoryOrderKey),
-               let dict = try? JSONDecoder().decode([String: Int].self, from: data) {
-                return dict
-            }
-            // Default order: assign sequential values starting from 0
-            var defaultOrder: [String: Int] = [:]
-            for (index, category) in ContactCategory.allCases.enumerated() {
-                defaultOrder[category.rawValue] = index
-            }
-            return defaultOrder
-        }
-        set {
-            if let data = try? JSONEncoder().encode(newValue) {
-                UserDefaults.standard.set(data, forKey: builtInCategoryOrderKey)
-                refreshTrigger = UUID()
-            }
-        }
-    }
-    
-    // Get order for a built-in category
-    func getOrder(for category: ContactCategory) -> Int {
-        return builtInCategoryOrder[category.rawValue] ?? Int.max
-    }
-    
-    // Set order for a built-in category
-    func setOrder(_ order: Int, for category: ContactCategory) {
-        var orderDict = builtInCategoryOrder
-        orderDict[category.rawValue] = order
-        builtInCategoryOrder = orderDict
-    }
-    
-    var enabledCategories: [ContactCategory] {
-        let enabled = ContactCategory.allCases.filter { !disabledCategories.contains($0.rawValue) }
-        
-        // Sort by order value
-        return enabled.sorted { cat1, cat2 in
-            let order1 = getOrder(for: cat1)
-            let order2 = getOrder(for: cat2)
-            return order1 < order2
-        }
-    }
-    
-    func disableCategory(_ category: ContactCategory) {
-        guard category != .personal else { return } // Can't disable Personal
-        var disabled = disabledCategories
-        disabled.insert(category.rawValue)
-        disabledCategories = disabled
-    }
-    
-    func enableCategory(_ category: ContactCategory) {
-        var disabled = disabledCategories
-        disabled.remove(category.rawValue)
-        disabledCategories = disabled
-    }
-    
-    func isEnabled(_ category: ContactCategory) -> Bool {
-        !disabledCategories.contains(category.rawValue)
+
+    func definition(for circle: SocialCircle) -> SocialCircleDefinition {
+        all.first(where: { $0.circle == circle }) ?? SocialCircleDefinition(
+            circle: .other,
+            title: "Other",
+            icon: "square.grid.2x2",
+            color: .gray,
+            order: 4
+        )
     }
 }

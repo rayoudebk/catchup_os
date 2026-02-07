@@ -1,194 +1,126 @@
 import Foundation
 import SwiftData
 
+enum SocialCircle: String, Codable, CaseIterable {
+    case personal
+    case family
+    case friends
+    case work
+    case other
+
+    init(legacyRawValue: String?) {
+        let value = (legacyRawValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch value {
+        case "personal":
+            self = .personal
+        case "family":
+            self = .family
+        case "friends", "friend":
+            self = .friends
+        case "work", "professional":
+            self = .work
+        case "", "unknown":
+            self = .personal
+        default:
+            self = .other
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .personal:
+            return "Personal"
+        case .family:
+            return "Family"
+        case .friends:
+            return "Friends"
+        case .work:
+            return "Work"
+        case .other:
+            return "Other"
+        }
+    }
+}
+
 @Model
 final class Contact {
     var id: UUID
     var name: String
     var phoneNumber: String?
     var email: String?
-    var categoryIdentifier: String // Stores enum rawValue for built-in, UUID string for custom
-    var customCategoryId: UUID? // UUID of custom category if applicable
-    var frequencyDays: Int
-    var preferredDayOfWeek: Int? // 1 = Sunday, 7 = Saturday
-    var preferredHour: Int? // 0-23
-    var lastCheckInDate: Date?
-    var notes: String
+    var birthday: Date?
+    var birthdayNote: String
+    var giftIdea: String
+
+    // Maps from older schema where this field was named "category".
+    @Attribute(originalName: "category")
+    var socialCircleRawValue: String
+
     var isFavorite: Bool
+    var profileImageData: Data?
+    var contactIdentifier: String?
     var createdAt: Date
-    var reminders: [String] // Checklist items
-    var giftIdea: String // Next gift idea
-    var photosPersonLocalIdentifier: String? // Link to Photos app person
-    var birthday: Date? // Birthday from contacts
-    var profileImageData: Data? // Profile image from contacts
-    var contactIdentifier: String? // Original CNContact identifier
-    var weMet: String // "We met..." text
-    
-    @Relationship(deleteRule: .cascade, inverse: \CheckIn.contact)
-    var checkIns: [CheckIn]?
-    
+
+    // Legacy plain-text note field from previous schema. We migrate this into ContactNote.
+    @Attribute(originalName: "notes")
+    var legacyPlainText: String
+
+    @Relationship(deleteRule: .cascade, inverse: \ContactNote.contact)
+    var noteTimeline: [ContactNote]?
+
     init(
         name: String,
         phoneNumber: String? = nil,
         email: String? = nil,
-        categoryIdentifier: String = ContactCategory.personal.rawValue,
-        customCategoryId: UUID? = nil,
-        frequencyDays: Int = 30, // Default to monthly
-        preferredDayOfWeek: Int? = nil,
-        preferredHour: Int? = nil,
-        notes: String = "",
-        isFavorite: Bool = false,
-        reminders: [String] = [],
-        giftIdea: String = "",
-        photosPersonLocalIdentifier: String? = nil,
         birthday: Date? = nil,
+        birthdayNote: String = "",
+        giftIdea: String = "",
+        socialCircle: SocialCircle = .personal,
+        isFavorite: Bool = false,
         profileImageData: Data? = nil,
         contactIdentifier: String? = nil,
-        weMet: String = ""
+        createdAt: Date = Date(),
+        legacyPlainText: String = ""
     ) {
         self.id = UUID()
         self.name = name
         self.phoneNumber = phoneNumber
         self.email = email
-        self.categoryIdentifier = categoryIdentifier
-        self.customCategoryId = customCategoryId
-        self.frequencyDays = frequencyDays
-        self.preferredDayOfWeek = preferredDayOfWeek
-        self.preferredHour = preferredHour
-        self.notes = notes
-        self.isFavorite = isFavorite
-        self.reminders = reminders
-        self.giftIdea = giftIdea
-        self.photosPersonLocalIdentifier = photosPersonLocalIdentifier
         self.birthday = birthday
+        self.birthdayNote = birthdayNote
+        self.giftIdea = giftIdea
+        self.socialCircleRawValue = socialCircle.rawValue
+        self.isFavorite = isFavorite
         self.profileImageData = profileImageData
         self.contactIdentifier = contactIdentifier
-        self.weMet = weMet
-        self.createdAt = Date()
-        self.checkIns = []
+        self.createdAt = createdAt
+        self.legacyPlainText = legacyPlainText
+        self.noteTimeline = []
     }
-    
-    // Computed property for backward compatibility - returns built-in category if it's a built-in one
-    var category: ContactCategory {
+
+    var socialCircle: SocialCircle {
         get {
-            ContactCategory(rawValue: categoryIdentifier) ?? .personal
+            let normalized = SocialCircle(legacyRawValue: socialCircleRawValue)
+            if socialCircleRawValue != normalized.rawValue {
+                socialCircleRawValue = normalized.rawValue
+            }
+            return normalized
         }
         set {
-            categoryIdentifier = newValue.rawValue
-            customCategoryId = nil
+            socialCircleRawValue = newValue.rawValue
         }
     }
-    
-    var daysUntilNextCheckIn: Int {
-        guard let lastCheckIn = lastCheckInDate else {
-            return 0 // Overdue - no check-in yet
-        }
-        
-        let daysSinceLastCheckIn = Calendar.current.dateComponents(
-            [.day],
-            from: lastCheckIn,
-            to: Date()
-        ).day ?? 0
-        
-        return max(0, frequencyDays - daysSinceLastCheckIn)
+
+    var notes: [ContactNote]? {
+        get { noteTimeline }
+        set { noteTimeline = newValue }
     }
-    
-    var isOverdue: Bool {
-        daysUntilNextCheckIn == 0
+
+    var sortedNotes: [ContactNote] {
+        (noteTimeline ?? []).sorted { $0.createdAt > $1.createdAt }
     }
-    
-    var nextCheckInDate: Date? {
-        guard let lastCheckIn = lastCheckInDate else {
-            return Date()
-        }
-        return Calendar.current.date(byAdding: .day, value: frequencyDays, to: lastCheckIn)
+
+    var latestNote: ContactNote? {
+        sortedNotes.first
     }
 }
-
-enum ContactCategory: String, Codable, CaseIterable {
-    case personal = "Personal"
-    case work = "Work"
-    case family = "Family"
-    case friends = "Friends"
-    
-    var icon: String {
-        switch self {
-        case .personal: return "person.fill"
-        case .work: return "briefcase.fill"
-        case .family: return "house.fill"
-        case .friends: return "person.2.fill"
-        }
-    }
-    
-    var emoji: String {
-        switch self {
-        case .personal: return "👤"
-        case .work: return "💼"
-        case .family: return "🏠"
-        case .friends: return "👥"
-        }
-    }
-}
-
-// Helper struct to get category display information
-struct CategoryInfo {
-    let name: String
-    let icon: String
-    let emoji: String
-    let isBuiltIn: Bool
-    let builtInCategory: ContactCategory?
-    let customCategory: CustomCategory?
-    
-    static func getCategoryInfo(
-        identifier: String,
-        customCategoryId: UUID?,
-        customCategories: [CustomCategory]
-    ) -> CategoryInfo {
-        // Check if it's a built-in category
-        if let builtIn = ContactCategory(rawValue: identifier) {
-            return CategoryInfo(
-                name: builtIn.rawValue,
-                icon: builtIn.icon,
-                emoji: "",
-                isBuiltIn: true,
-                builtInCategory: builtIn,
-                customCategory: nil
-            )
-        }
-        
-        // Check if it's a custom category
-        if let customId = customCategoryId,
-           let custom = customCategories.first(where: { $0.id == customId }) {
-            return CategoryInfo(
-                name: custom.name,
-                icon: custom.icon,
-                emoji: custom.emoji,
-                isBuiltIn: false,
-                builtInCategory: nil,
-                customCategory: custom
-            )
-        }
-        
-        // Fallback to Personal
-        return CategoryInfo(
-            name: ContactCategory.personal.rawValue,
-            icon: ContactCategory.personal.icon,
-            emoji: "",
-            isBuiltIn: true,
-            builtInCategory: .personal,
-            customCategory: nil
-        )
-    }
-}
-
-// Extension to Contact for easy category info access
-extension Contact {
-    func categoryInfo(customCategories: [CustomCategory]) -> CategoryInfo {
-        CategoryInfo.getCategoryInfo(
-            identifier: categoryIdentifier,
-            customCategoryId: customCategoryId,
-            customCategories: customCategories
-        )
-    }
-}
-
