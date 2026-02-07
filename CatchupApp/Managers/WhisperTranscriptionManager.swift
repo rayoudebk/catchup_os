@@ -84,6 +84,19 @@ final class WhisperModelManager: ObservableObject {
         return formatter.string(fromByteCount: size.int64Value)
     }
 
+    func removeModel(_ variant: WhisperModelVariant) throws {
+        let fileURL = modelURL(for: variant)
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            try FileManager.default.removeItem(at: fileURL)
+        }
+
+        if preferredModel == variant {
+            preferredModel = .largeV3
+        }
+
+        objectWillChange.send()
+    }
+
     func downloadModel(_ variant: WhisperModelVariant) async throws {
         if isDownloading {
             return

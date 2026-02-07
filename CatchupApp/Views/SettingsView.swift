@@ -16,6 +16,7 @@ struct SettingsView: View {
     @State private var exportPayload = ""
     @State private var exportSubject = "Contact+Notes Export"
     @State private var showingClearAlert = false
+    @State private var modelActionError: String?
 
     var body: some View {
         List {
@@ -46,34 +47,8 @@ struct SettingsView: View {
             }
 
             Section("On-Device Transcription") {
-                HStack {
-                    Text("Preferred model")
-                    Spacer()
-                    Text(modelManager.preferredModel.rawValue)
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text("large-v3")
-                    Spacer()
-                    Text(modelManager.fileSizeDescription(for: .largeV3))
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text("large-v3-turbo")
-                    Spacer()
-                    Text(modelManager.fileSizeDescription(for: .largeV3Turbo))
-                        .foregroundColor(.secondary)
-                }
-
-                Button(modelManager.isDownloading ? "Downloading..." : "Download large-v3 (Wi-Fi)") {
-                    Task {
-                        modelManager.preferredModel = .largeV3
-                        try? await modelManager.downloadModel(.largeV3)
-                    }
-                }
-                .disabled(modelManager.isDownloading)
+                modelRow(for: .largeV3, recommended: true)
+                modelRow(for: .largeV3Turbo, recommended: false)
 
                 if !modelManager.lastFallbackReason.isEmpty {
                     Text("Last fallback: \(modelManager.lastFallbackReason)")
@@ -124,8 +99,55 @@ struct SettingsView: View {
         } message: {
             Text("This permanently deletes all contacts and notes on this device.")
         }
+        .alert("Model Action Error", isPresented: Binding(
+            get: { modelActionError != nil },
+            set: { if !$0 { modelActionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { modelActionError = nil }
+        } message: {
+            Text(modelActionError ?? "")
+        }
         .onAppear {
             refreshNotificationStatus()
+        }
+    }
+
+    @ViewBuilder
+    private func modelRow(for model: WhisperModelVariant, recommended: Bool) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recommended ? "\(model.rawValue) (Recommended)" : model.rawValue)
+                Text(modelManager.fileSizeDescription(for: model))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            if modelManager.isModelAvailable(model) {
+                Button("Remove", role: .destructive) {
+                    do {
+                        try modelManager.removeModel(model)
+                    } catch {
+                        modelActionError = error.localizedDescription
+                    }
+                }
+                .disabled(modelManager.isDownloading)
+            } else {
+                Button(modelManager.isDownloading ? "Downloading..." : "Download") {
+                    Task {
+                        modelManager.preferredModel = model
+                        do {
+                            try await modelManager.downloadModel(model)
+                        } catch {
+                            await MainActor.run {
+                                modelActionError = error.localizedDescription
+                            }
+                        }
+                    }
+                }
+                .disabled(modelManager.isDownloading)
+            }
         }
     }
 

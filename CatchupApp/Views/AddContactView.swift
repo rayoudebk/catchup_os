@@ -7,14 +7,22 @@ struct AddContactView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var existingContacts: [Contact]
 
+    let onImportCompleted: (() -> Void)?
+
     @State private var allContacts: [CNContact] = []
-    @State private var selectedIdentifiers: Set<String> = []
+    @State private var selectedAssignments: [String: SocialCircle] = [:]
     @State private var searchText = ""
     @State private var isLoading = false
     @State private var permissionDenied = false
+    @State private var activeCircle: SocialCircle = .personal
 
-    @State private var selectedSocialCircle: SocialCircle = .personal
-    @State private var giftIdeaDraft = ""
+    init(onImportCompleted: (() -> Void)? = nil) {
+        self.onImportCompleted = onImportCompleted
+    }
+
+    private var selectedCount: Int {
+        selectedAssignments.count
+    }
 
     private var existingIdentifiers: Set<String> {
         Set(existingContacts.compactMap { $0.contactIdentifier })
@@ -33,6 +41,23 @@ struct AddContactView: View {
         }
     }
 
+    private var recommendedContacts: [CNContact] {
+        let ranked = filteredContacts
+            .map { ($0, richnessScore(for: $0)) }
+            .filter { $0.1 >= 4 }
+            .sorted {
+                if $0.1 != $1.1 { return $0.1 > $1.1 }
+                return displayName(for: $0.0).localizedCaseInsensitiveCompare(displayName(for: $1.0)) == .orderedAscending
+            }
+
+        return ranked.prefix(25).map { $0.0 }
+    }
+
+    private var nonRecommendedContacts: [CNContact] {
+        let recommendedIds = Set(recommendedContacts.map { $0.identifier })
+        return filteredContacts.filter { !recommendedIds.contains($0.identifier) }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -42,51 +67,38 @@ struct AddContactView: View {
                 } else if permissionDenied {
                     permissionDeniedView
                 } else {
-                    List {
-                        Section("Defaults") {
-                            Picker("Social Circle", selection: $selectedSocialCircle) {
-                                ForEach(SocialCircle.allCases, id: \.self) { circle in
-                                    Text(circle.title).tag(circle)
+                    VStack(spacing: 0) {
+                        categoryPickerBar
+
+                        List {
+                            if availableContacts.isEmpty {
+                                Section {
+                                    Text("All address book contacts are already imported.")
+                                        .foregroundColor(.secondary)
                                 }
-                            }
-
-                            TextField("Gift idea (optional)", text: $giftIdeaDraft, axis: .vertical)
-                                .lineLimit(2...4)
-                        }
-
-                        Section("Address Book") {
-                            if filteredContacts.isEmpty {
-                                Text(availableContacts.isEmpty ? "No contacts available to import." : "No matching contacts.")
-                                    .foregroundColor(.secondary)
                             } else {
-                                ForEach(filteredContacts, id: \.identifier) { contact in
-                                    Button {
-                                        toggleSelection(for: contact.identifier)
-                                    } label: {
-                                        HStack {
-                                            Image(systemName: selectedIdentifiers.contains(contact.identifier) ? "checkmark.circle.fill" : "circle")
-                                                .foregroundColor(selectedIdentifiers.contains(contact.identifier) ? .blue : .secondary)
-
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(displayName(for: contact))
-                                                    .foregroundColor(.primary)
-                                                if let birthday = contact.birthday?.date {
-                                                    Text("Birthday: \(birthday.formatted(date: .abbreviated, time: .omitted))")
-                                                        .font(.caption)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-
-                                            Spacer()
+                                if !recommendedContacts.isEmpty {
+                                    Section("Recommended") {
+                                        ForEach(recommendedContacts, id: \.identifier) { contact in
+                                            contactSelectionRow(contact)
                                         }
-                                        .contentShape(Rectangle())
                                     }
-                                    .buttonStyle(.plain)
+                                }
+
+                                Section(recommendedContacts.isEmpty ? "Address Book" : "All Contacts") {
+                                    if nonRecommendedContacts.isEmpty {
+                                        Text("No additional contacts match your search.")
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        ForEach(nonRecommendedContacts, id: \.identifier) { contact in
+                                            contactSelectionRow(contact)
+                                        }
+                                    }
                                 }
                             }
                         }
+                        .listStyle(.insetGrouped)
                     }
-                    .listStyle(.insetGrouped)
                 }
             }
             .navigationTitle("Add Contacts")
@@ -97,16 +109,41 @@ struct AddContactView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
+                    Button(selectedCount > 0 ? "Import \(selectedCount)" : "Import") {
                         importSelectedContacts()
                     }
-                    .disabled(selectedIdentifiers.isEmpty)
+                    .disabled(selectedCount == 0)
                 }
             }
             .task {
                 await loadContacts()
             }
         }
+    }
+
+    private var categoryPickerBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(SocialCircle.allCases, id: \.self) { circle in
+                    Button {
+                        activeCircle = circle
+                    } label: {
+                        Text(circle.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(activeCircle == circle ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+                            .foregroundColor(activeCircle == circle ? .accentColor : .primary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.systemBackground))
     }
 
     private var permissionDeniedView: some View {
@@ -121,11 +158,56 @@ struct AddContactView: View {
         .padding()
     }
 
+    @ViewBuilder
+    private func contactSelectionRow(_ contact: CNContact) -> some View {
+        let contactName = displayName(for: contact)
+        let assignedCircle = selectedAssignments[contact.identifier]
+
+        Button {
+            toggleSelection(for: contact.identifier)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: assignedCircle == nil ? "circle" : "checkmark.circle.fill")
+                    .foregroundColor(assignedCircle == nil ? .secondary : .blue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(contactName)
+                        .foregroundColor(.primary)
+
+                    if let birthday = contact.birthday?.date {
+                        Text("Birthday: \(birthday.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                if let assignedCircle {
+                    Text(assignedCircle.title)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentColor.opacity(0.15))
+                        .foregroundColor(.accentColor)
+                        .clipShape(Capsule())
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
     private func toggleSelection(for identifier: String) {
-        if selectedIdentifiers.contains(identifier) {
-            selectedIdentifiers.remove(identifier)
+        if let assigned = selectedAssignments[identifier] {
+            if assigned == activeCircle {
+                selectedAssignments.removeValue(forKey: identifier)
+            } else {
+                selectedAssignments[identifier] = activeCircle
+            }
         } else {
-            selectedIdentifiers.insert(identifier)
+            selectedAssignments[identifier] = activeCircle
         }
     }
 
@@ -182,9 +264,11 @@ struct AddContactView: View {
     }
 
     private func importSelectedContacts() {
-        let chosen = availableContacts.filter { selectedIdentifiers.contains($0.identifier) }
+        let byIdentifier = Dictionary(uniqueKeysWithValues: availableContacts.map { ($0.identifier, $0) })
 
-        for cnContact in chosen {
+        for (identifier, circle) in selectedAssignments {
+            guard let cnContact = byIdentifier[identifier] else { continue }
+
             let name = displayName(for: cnContact)
             let phone = cnContact.phoneNumbers.first?.value.stringValue
             let email = cnContact.emailAddresses.first?.value as String?
@@ -197,8 +281,8 @@ struct AddContactView: View {
                 email: email,
                 birthday: birthday,
                 birthdayNote: "",
-                giftIdea: giftIdeaDraft.trimmingCharacters(in: .whitespacesAndNewlines),
-                socialCircle: selectedSocialCircle,
+                giftIdea: "",
+                socialCircle: circle,
                 isFavorite: false,
                 profileImageData: imageData,
                 contactIdentifier: cnContact.identifier
@@ -208,6 +292,7 @@ struct AddContactView: View {
         }
 
         try? modelContext.save()
+        onImportCompleted?()
         dismiss()
     }
 
@@ -217,6 +302,26 @@ struct AddContactView: View {
         if !contact.nickname.isEmpty { return contact.nickname }
         if !contact.organizationName.isEmpty { return contact.organizationName }
         return "Unknown"
+    }
+
+    private func richnessScore(for contact: CNContact) -> Int {
+        var score = 0
+
+        let full = "\(contact.givenName) \(contact.familyName)".trimmingCharacters(in: .whitespacesAndNewlines)
+        if !full.isEmpty { score += 2 }
+        if !contact.nickname.isEmpty { score += 1 }
+        if !contact.organizationName.isEmpty { score += 1 }
+
+        if !contact.phoneNumbers.isEmpty { score += 2 }
+        if contact.phoneNumbers.count > 1 { score += 1 }
+
+        if !contact.emailAddresses.isEmpty { score += 2 }
+        if contact.emailAddresses.count > 1 { score += 1 }
+
+        if contact.birthday != nil { score += 1 }
+        if contact.imageData != nil || contact.thumbnailImageData != nil { score += 1 }
+
+        return score
     }
 }
 

@@ -83,7 +83,10 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $showingAddContact) {
-                AddContactView()
+                AddContactView {
+                    selectedCircle = nil
+                    searchText = ""
+                }
             }
             .task {
                 guard !didRunStartup else { return }
