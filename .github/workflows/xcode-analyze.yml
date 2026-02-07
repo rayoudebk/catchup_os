@@ -1,0 +1,42 @@
+name: xcode-analyze
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Analyze iOS Project
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          echo "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: Analyze
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project catchup_os.xcodeproj \
+            -scheme catchup_os \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            CODE_SIGNING_ALLOWED=NO \
+            analyze | tee "$RUNNER_TEMP/xcode-analyze.log"
+
+      - name: Upload analyze log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcode-analyze-log
+          path: ${{ runner.temp }}/xcode-analyze.log

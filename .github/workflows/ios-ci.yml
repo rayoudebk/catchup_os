@@ -1,0 +1,50 @@
+name: ios-ci
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build iOS Simulator
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          echo "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" >> "$GITHUB_ENV"
+          xcodebuild -version
+
+      - name: Resolve Swift Package Dependencies
+        run: |
+          xcodebuild \
+            -project catchup_os.xcodeproj \
+            -scheme catchup_os \
+            -resolvePackageDependencies
+
+      - name: Build (iOS Simulator)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project catchup_os.xcodeproj \
+            -scheme catchup_os \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee "$RUNNER_TEMP/ios-ci-build.log"
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ci-build-log
+          path: ${{ runner.temp }}/ios-ci-build.log

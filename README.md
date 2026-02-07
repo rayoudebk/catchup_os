@@ -89,6 +89,45 @@ CatchupApp/
 2. Select the `catchup_os` scheme and your team signing settings.
 3. Build and run on a device or simulator.
 
+## CI and Release Automation
+
+GitHub Actions workflows in this repository:
+
+1. `.github/workflows/ios-ci.yml`
+   1. Runs on pull requests and pushes to `main`
+   2. Resolves packages and builds the app for iOS Simulator with signing disabled
+2. `.github/workflows/xcode-analyze.yml`
+   1. Runs on pull requests and pushes to `main`
+   2. Executes `xcodebuild analyze` for static analysis checks
+3. `.github/workflows/testflight-release.yml`
+   1. Manual trigger only (`workflow_dispatch`)
+   2. Archives, exports IPA, and uploads to TestFlight
+   3. Does not run on PR or push
+
+### Required GitHub Secrets (TestFlight workflow)
+
+1. `IOS_DIST_CERT_P12_BASE64`
+2. `IOS_DIST_CERT_PASSWORD`
+3. `IOS_PROVISION_PROFILE_BASE64`
+4. `IOS_PROVISION_PROFILE_SPECIFIER`
+5. `APPSTORE_CONNECT_API_KEY_ID`
+6. `APPSTORE_CONNECT_ISSUER_ID`
+7. `APPSTORE_CONNECT_API_PRIVATE_KEY_BASE64`
+
+### Optional GitHub Variables
+
+1. `APP_BUNDLE_ID` (defaults to `rayoudev.catchup`)
+2. `DEVELOPMENT_TEAM_ID` (defaults to `Q25X2WD6VV`)
+
+### Branch Protection Recommendation
+
+For `main`, require status checks:
+
+1. `ios-ci`
+2. `xcode-analyze`
+
+Do not require `testflight-release` for merge, since it is manual by design.
+
 ## Permissions
 
 - **Contacts**: optional import from iOS address book
