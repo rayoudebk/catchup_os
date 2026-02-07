@@ -18,6 +18,7 @@ struct ContactDetailView: View {
     @State private var recorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var transcriptionError: String?
+    @State private var reminderDraft = ""
     @State private var showingEventSheet = false
     @State private var eventDate: Date = Date()
     @State private var eventStatusMessage: String?
@@ -58,6 +59,52 @@ struct ContactDetailView: View {
                     showingEventSheet = true
                 } label: {
                     Label("Event", systemImage: "calendar.badge.plus")
+                }
+            }
+
+            Section("Reminders") {
+                HStack(spacing: 8) {
+                    TextField("Add reminder", text: $reminderDraft)
+                        .textInputAutocapitalization(.sentences)
+
+                    Button {
+                        addReminder()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(reminderDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+
+                if contact.sortedReminders.isEmpty {
+                    Text("No reminders yet")
+                        .foregroundColor(.secondary)
+                } else {
+                    ForEach(contact.sortedReminders) { reminder in
+                        HStack(spacing: 10) {
+                            Button {
+                                toggleReminder(reminder)
+                            } label: {
+                                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(reminder.isCompleted ? .green : .secondary)
+                            }
+                            .buttonStyle(.plain)
+
+                            Text(reminder.title)
+                                .strikethrough(reminder.isCompleted, color: .secondary)
+                                .foregroundColor(reminder.isCompleted ? .secondary : .primary)
+
+                            Spacer()
+
+                            Button(role: .destructive) {
+                                deleteReminder(reminder)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
 
@@ -395,6 +442,32 @@ struct ContactDetailView: View {
 
         composerText = ""
         composerSource = .typed
+    }
+
+    private func addReminder() {
+        let trimmed = reminderDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let reminder = ContactReminder(
+            createdAt: Date(),
+            title: trimmed,
+            isCompleted: false,
+            contact: contact
+        )
+        modelContext.insert(reminder)
+        try? modelContext.save()
+
+        reminderDraft = ""
+    }
+
+    private func toggleReminder(_ reminder: ContactReminder) {
+        reminder.isCompleted.toggle()
+        try? modelContext.save()
+    }
+
+    private func deleteReminder(_ reminder: ContactReminder) {
+        modelContext.delete(reminder)
+        try? modelContext.save()
     }
 
     private func deleteNote(_ note: ContactNote) {

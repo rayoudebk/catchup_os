@@ -43,6 +43,28 @@ final class ContactNote: Identifiable {
     }
 }
 
+@Model
+final class ContactReminder: Identifiable {
+    var id: UUID
+    var createdAt: Date
+    var title: String
+    var isCompleted: Bool
+    var contact: Contact?
+
+    init(
+        createdAt: Date = Date(),
+        title: String,
+        isCompleted: Bool = false,
+        contact: Contact? = nil
+    ) {
+        self.id = UUID()
+        self.createdAt = createdAt
+        self.title = title
+        self.isCompleted = isCompleted
+        self.contact = contact
+    }
+}
+
 // Legacy model kept only for one migration cycle.
 @Model
 final class CheckIn: Identifiable {

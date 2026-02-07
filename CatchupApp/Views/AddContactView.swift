@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import Contacts
+import OSLog
 
 struct AddContactView: View {
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +19,7 @@ struct AddContactView: View {
     @State private var activeCircle: SocialCircle = .personal
     @State private var importError: String?
     @State private var sessionExcludedIdentifiers: Set<String> = []
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "ContactNotes", category: "ContactImport")
 
     init(onImportCompleted: (() -> Void)? = nil) {
         self.onImportCompleted = onImportCompleted
@@ -243,10 +245,12 @@ struct AddContactView: View {
             }
 
             if !granted {
+                logger.warning("Contacts permission denied on first request")
                 permissionDenied = true
                 return
             }
         } else if status != .authorized {
+            logger.warning("Contacts permission unavailable with status \(status.rawValue)")
             permissionDenied = true
             return
         }
@@ -273,7 +277,9 @@ struct AddContactView: View {
             allContacts = loaded.sorted {
                 displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending
             }
+            logger.info("Loaded \(loaded.count) address book contacts")
         } catch {
+            logger.error("Failed loading contacts: \(error.localizedDescription, privacy: .public)")
             permissionDenied = true
         }
     }
@@ -293,6 +299,7 @@ struct AddContactView: View {
         let byIdentifier = Dictionary(uniqueKeysWithValues: availableContacts.map { ($0.identifier, $0) })
         var importedIdentifiers: [String] = []
         var insertedContacts: [Contact] = []
+        logger.info("Import started. selected=\(selectedSnapshot.count), available=\(availableContacts.count), excluded=\(excludedAtStart.count)")
 
         for (identifier, circle) in selectedSnapshot.sorted(by: { $0.key < $1.key }) {
             guard !excludedAtStart.contains(identifier) else { continue }
@@ -323,10 +330,12 @@ struct AddContactView: View {
 
         do {
             try modelContext.save()
+            logger.info("Import save succeeded. inserted=\(insertedContacts.count)")
         } catch {
             for contact in insertedContacts {
                 modelContext.delete(contact)
             }
+            logger.error("Import save failed. inserted=\(insertedContacts.count), error=\(error.localizedDescription, privacy: .public)")
             importError = "Could not import contacts: \(error.localizedDescription)"
             return
         }
@@ -341,25 +350,14 @@ struct AddContactView: View {
         }
 
         guard !importedIdentifiers.isEmpty else {
+            logger.warning("Import finished with zero inserted contacts")
             importError = "No new contacts were imported."
-            return
-        }
-
-        do {
-            let persisted = try modelContext.fetch(FetchDescriptor<Contact>())
-            let persistedIdentifiers = Set(persisted.compactMap(\.contactIdentifier))
-            let missing = importedIdentifiers.filter { !persistedIdentifiers.contains($0) }
-            if !missing.isEmpty {
-                importError = "Import could not be verified. Please try again."
-                return
-            }
-        } catch {
-            importError = "Import verification failed: \(error.localizedDescription)"
             return
         }
 
         let importedSet = Set(importedIdentifiers)
         allContacts.removeAll { importedSet.contains($0.identifier) }
+        logger.info("Import completed. imported=\(importedSet.count)")
 
         onImportCompleted?()
         dismiss()

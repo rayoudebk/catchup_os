@@ -11,7 +11,7 @@ struct CatchupApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Contact.self, ContactNote.self, CheckIn.self])
+        .modelContainer(for: [Contact.self, ContactNote.self, ContactReminder.self, CheckIn.self])
     }
 }
 

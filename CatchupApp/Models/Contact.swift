@@ -67,6 +67,8 @@ final class Contact {
 
     @Relationship(deleteRule: .cascade, inverse: \ContactNote.contact)
     var noteTimeline: [ContactNote]?
+    @Relationship(deleteRule: .cascade, inverse: \ContactReminder.contact)
+    var reminderChecklist: [ContactReminder]?
 
     init(
         name: String,
@@ -96,6 +98,7 @@ final class Contact {
         self.createdAt = createdAt
         self.legacyPlainText = legacyPlainText
         self.noteTimeline = []
+        self.reminderChecklist = []
     }
 
     var socialCircle: SocialCircle {
@@ -118,6 +121,20 @@ final class Contact {
 
     var sortedNotes: [ContactNote] {
         (noteTimeline ?? []).sorted { $0.createdAt > $1.createdAt }
+    }
+
+    var reminders: [ContactReminder]? {
+        get { reminderChecklist }
+        set { reminderChecklist = newValue }
+    }
+
+    var sortedReminders: [ContactReminder] {
+        (reminderChecklist ?? []).sorted { lhs, rhs in
+            if lhs.isCompleted != rhs.isCompleted {
+                return !lhs.isCompleted
+            }
+            return lhs.createdAt < rhs.createdAt
+        }
     }
 
     var latestNote: ContactNote? {

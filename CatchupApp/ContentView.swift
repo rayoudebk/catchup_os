@@ -9,13 +9,12 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedCircle: SocialCircle?
     @State private var showingAddContact = false
+    @State private var showingQuickNoteComposer = false
+    @State private var showingQuickGiftIdeaEditor = false
     @State private var didRunStartup = false
     @State private var startupError: String?
 
     private let categoryManager = CategoryManager.shared
-    private let importGoal = 5
-    private let noteGoal = 3
-    private let giftIdeaGoal = 1
 
     private var filteredContacts: [Contact] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -48,11 +47,33 @@ struct ContentView: View {
         }
     }
 
+    private var completedContactStep: Bool {
+        contacts.count >= 1
+    }
+
+    private var completedNoteStep: Bool {
+        notes.count >= 1
+    }
+
+    private var completedGiftStep: Bool {
+        contacts.contains { !$0.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    private var activeOnboardingStep: OnboardingStep? {
+        if !completedContactStep { return .addContact }
+        if !completedNoteStep { return .recordNote }
+        if !completedGiftStep { return .addGiftIdea }
+        return nil
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                onboardingBanner
                 socialCircleFilter
+
+                if let step = activeOnboardingStep {
+                    onboardingCard(for: step)
+                }
 
                 Group {
                     if filteredContacts.isEmpty {
@@ -70,9 +91,7 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("Contacts+Notes")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search contacts or notes")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
@@ -94,11 +113,20 @@ struct ContentView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                bottomSearchBar
+            }
             .sheet(isPresented: $showingAddContact) {
                 AddContactView {
                     selectedCircle = nil
                     searchText = ""
                 }
+            }
+            .sheet(isPresented: $showingQuickNoteComposer) {
+                QuickNoteComposerView(preselectedContactID: contacts.first?.id)
+            }
+            .sheet(isPresented: $showingQuickGiftIdeaEditor) {
+                QuickGiftIdeaComposerView(preselectedContactID: contacts.first?.id)
             }
             .task {
                 guard !didRunStartup else { return }
@@ -127,51 +155,6 @@ struct ContentView: View {
         }
     }
 
-    private var onboardingBanner: some View {
-        let imported = min(contacts.count, importGoal)
-        let recordedNotes = min(notes.count, noteGoal)
-        let giftIdeas = min(
-            contacts.filter { !$0.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count,
-            giftIdeaGoal
-        )
-        let completedUnits = imported + recordedNotes + giftIdeas
-        let totalUnits = importGoal + noteGoal + giftIdeaGoal
-        let progress = Double(completedUnits) / Double(totalUnits)
-
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(completedUnits >= totalUnits ? "Onboarding Complete" : "Onboarding Progress")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-
-            ProgressView(value: progress)
-                .tint(.accentColor)
-
-            Text("\(completedUnits)/\(totalUnits) completed")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            HStack(spacing: 12) {
-                onboardingStepLabel(title: "Import \(importGoal)", value: imported, goal: importGoal)
-                onboardingStepLabel(title: "Record \(noteGoal) notes", value: recordedNotes, goal: noteGoal)
-                onboardingStepLabel(title: "Add 1 gift idea", value: giftIdeas, goal: giftIdeaGoal)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
-    }
-
-    private func onboardingStepLabel(title: String, value: Int, goal: Int) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: value >= goal ? "checkmark.circle.fill" : "circle")
-                .foregroundColor(value >= goal ? .green : .secondary)
-            Text("\(title): \(value)/\(goal)")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-    }
-
     private var socialCircleFilter: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -193,6 +176,83 @@ struct ContentView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
         }
+        .background(Color(.systemBackground))
+    }
+
+    private func onboardingCard(for step: OnboardingStep) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Onboarding")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Text(step.title)
+                .font(.headline)
+
+            Text(step.subtitle)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            HStack {
+                Text("Step \(step.stepNumber) of 3")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Spacer()
+
+                Button(step.actionTitle) {
+                    handleOnboardingAction(step)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+    }
+
+    private func handleOnboardingAction(_ step: OnboardingStep) {
+        switch step {
+        case .addContact:
+            showingAddContact = true
+        case .recordNote:
+            showingQuickNoteComposer = true
+        case .addGiftIdea:
+            showingQuickGiftIdeaEditor = true
+        }
+    }
+
+    private var bottomSearchBar: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+
+                TextField("Search contacts or notes", text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(Capsule())
+
+            Button {
+                showingQuickNoteComposer = true
+            } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(.title3)
+                    .foregroundColor(.primary)
+                    .frame(width: 50, height: 50)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(Circle())
+            }
+            .disabled(contacts.isEmpty)
+            .opacity(contacts.isEmpty ? 0.5 : 1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
         .background(Color(.systemBackground))
     }
 
@@ -227,5 +287,263 @@ struct ContentView: View {
             modelContext.delete(filteredContacts[index])
         }
         try? modelContext.save()
+    }
+}
+
+private enum OnboardingStep {
+    case addContact
+    case recordNote
+    case addGiftIdea
+
+    var stepNumber: Int {
+        switch self {
+        case .addContact:
+            return 1
+        case .recordNote:
+            return 2
+        case .addGiftIdea:
+            return 3
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .addContact:
+            return "Add your first contact"
+        case .recordNote:
+            return "Record your first note"
+        case .addGiftIdea:
+            return "Add a gift idea"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .addContact:
+            return "Import one contact from your address book to get started."
+        case .recordNote:
+            return "Create one note for any contact to start building context."
+        case .addGiftIdea:
+            return "Add a gift idea on one profile to complete onboarding."
+        }
+    }
+
+    var actionTitle: String {
+        switch self {
+        case .addContact:
+            return "Add Contact"
+        case .recordNote:
+            return "New Note"
+        case .addGiftIdea:
+            return "Add Gift Idea"
+        }
+    }
+}
+
+private struct QuickNoteComposerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Contact.name, order: .forward) private var contacts: [Contact]
+
+    @State private var selectedContactID: UUID?
+    @State private var noteText = ""
+    @State private var composerError: String?
+
+    init(preselectedContactID: UUID? = nil) {
+        _selectedContactID = State(initialValue: preselectedContactID)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if contacts.isEmpty {
+                    Text("Add at least one contact before creating notes.")
+                        .foregroundColor(.secondary)
+                } else {
+                    Picker("Contact", selection: $selectedContactID) {
+                        Text("Select Contact").tag(nil as UUID?)
+                        ForEach(contacts) { contact in
+                            Text(contact.name).tag(Optional(contact.id))
+                        }
+                    }
+                }
+
+                Section("Note") {
+                    TextEditor(text: $noteText)
+                        .frame(minHeight: 150)
+                }
+            }
+            .navigationTitle("New Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                    }
+                    .disabled(
+                        contacts.isEmpty ||
+                        selectedContact == nil ||
+                        noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+            .alert(
+                "Note Error",
+                isPresented: Binding(
+                    get: { composerError != nil },
+                    set: { newValue in
+                        if !newValue { composerError = nil }
+                    }
+                )
+            ) {
+                Button("OK", role: .cancel) { composerError = nil }
+            } message: {
+                Text(composerError ?? "")
+            }
+            .onAppear {
+                if selectedContactID == nil {
+                    selectedContactID = contacts.first?.id
+                }
+            }
+        }
+    }
+
+    private var selectedContact: Contact? {
+        guard let selectedContactID else { return nil }
+        return contacts.first(where: { $0.id == selectedContactID })
+    }
+
+    private func save() {
+        let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let selectedContact else {
+            composerError = "Please select a contact."
+            return
+        }
+
+        let note = ContactNote(
+            createdAt: Date(),
+            updatedAt: Date(),
+            body: trimmed,
+            source: .typed,
+            transcriptLanguage: Locale.current.identifier,
+            audioDurationSec: nil,
+            contact: selectedContact
+        )
+
+        modelContext.insert(note)
+
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            composerError = "Could not save note: \(error.localizedDescription)"
+        }
+    }
+}
+
+private struct QuickGiftIdeaComposerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Contact.name, order: .forward) private var contacts: [Contact]
+
+    @State private var selectedContactID: UUID?
+    @State private var giftIdeaText = ""
+    @State private var composerError: String?
+
+    init(preselectedContactID: UUID? = nil) {
+        _selectedContactID = State(initialValue: preselectedContactID)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if contacts.isEmpty {
+                    Text("Add at least one contact before adding gift ideas.")
+                        .foregroundColor(.secondary)
+                } else {
+                    Picker("Contact", selection: $selectedContactID) {
+                        Text("Select Contact").tag(nil as UUID?)
+                        ForEach(contacts) { contact in
+                            Text(contact.name).tag(Optional(contact.id))
+                        }
+                    }
+                }
+
+                Section("Gift Idea") {
+                    TextEditor(text: $giftIdeaText)
+                        .frame(minHeight: 120)
+                }
+            }
+            .navigationTitle("Gift Idea")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                    }
+                    .disabled(
+                        contacts.isEmpty ||
+                        selectedContact == nil ||
+                        giftIdeaText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
+                }
+            }
+            .alert(
+                "Gift Idea Error",
+                isPresented: Binding(
+                    get: { composerError != nil },
+                    set: { newValue in
+                        if !newValue { composerError = nil }
+                    }
+                )
+            ) {
+                Button("OK", role: .cancel) { composerError = nil }
+            } message: {
+                Text(composerError ?? "")
+            }
+            .onAppear {
+                if selectedContactID == nil {
+                    selectedContactID = contacts.first?.id
+                }
+                updateDraftFromSelectedContact()
+            }
+            .onChange(of: selectedContactID) { _, _ in
+                updateDraftFromSelectedContact()
+            }
+        }
+    }
+
+    private var selectedContact: Contact? {
+        guard let selectedContactID else { return nil }
+        return contacts.first(where: { $0.id == selectedContactID })
+    }
+
+    private func updateDraftFromSelectedContact() {
+        giftIdeaText = selectedContact?.giftIdea ?? ""
+    }
+
+    private func save() {
+        let trimmed = giftIdeaText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let selectedContact else {
+            composerError = "Please select a contact."
+            return
+        }
+
+        selectedContact.giftIdea = trimmed
+
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            composerError = "Could not save gift idea: \(error.localizedDescription)"
+        }
     }
 }
