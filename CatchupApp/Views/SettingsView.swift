@@ -14,76 +14,74 @@ struct SettingsView: View {
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var showingShareSheet = false
     @State private var exportPayload = ""
-    @State private var exportSubject = "Contact+Notes Export"
+    @State private var exportSubject = "Contacts+Notes Export"
     @State private var showingClearAlert = false
     @State private var modelActionError: String?
 
     var body: some View {
-        List {
-            Section("Privacy") {
-                Text("All records are stored on this iPhone only.")
-                Text("No cloud backend and no iCloud sync in this version.")
-                    .foregroundColor(.secondary)
-            }
+        VStack(spacing: 0) {
+            privacyInfoBanner
 
-            Section("Birthday Reminders") {
-                HStack {
-                    Text("Permission")
-                    Spacer()
-                    Text(notificationStatusText)
-                        .foregroundColor(.secondary)
-                }
+            List {
+                Section("Birthday Reminders") {
+                    HStack {
+                        Text("Permission")
+                        Spacer()
+                        Text(notificationStatusText)
+                            .foregroundColor(.secondary)
+                    }
 
-                Button("Enable Birthday Reminders") {
-                    BirthdayReminderManager.shared.requestAuthorization()
-                    refreshNotificationStatus()
-                }
+                    Button("Enable Birthday Reminders") {
+                        BirthdayReminderManager.shared.requestAuthorization()
+                        refreshNotificationStatus()
+                    }
 
-                Button("Open Notification Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+                    Button("Open Notification Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
                     }
                 }
-            }
 
-            Section("On-Device Transcription") {
-                modelRow(for: .largeV3, recommended: true)
-                modelRow(for: .largeV3Turbo, recommended: false)
+                Section("On-Device Transcription") {
+                    modelRow(for: .largeV3, recommended: true)
+                    modelRow(for: .largeV3Turbo, recommended: false)
 
-                if !modelManager.lastFallbackReason.isEmpty {
-                    Text("Last fallback: \(modelManager.lastFallbackReason)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Section("Data") {
-                HStack {
-                    Text("Contacts")
-                    Spacer()
-                    Text("\(contacts.count)")
-                        .foregroundColor(.secondary)
+                    if !modelManager.lastFallbackReason.isEmpty {
+                        Text("Last fallback: \(modelManager.lastFallbackReason)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                HStack {
-                    Text("Notes")
-                    Spacer()
-                    Text("\(notes.count)")
-                        .foregroundColor(.secondary)
-                }
+                Section("Data") {
+                    HStack {
+                        Text("Contacts")
+                        Spacer()
+                        Text("\(contacts.count)")
+                            .foregroundColor(.secondary)
+                    }
 
-                Button("Export Data") {
-                    exportData()
-                }
+                    HStack {
+                        Text("Notes")
+                        Spacer()
+                        Text("\(notes.count)")
+                            .foregroundColor(.secondary)
+                    }
 
-                Button("Export to Apple Notes") {
-                    exportToAppleNotes()
-                }
+                    Button("Export Data") {
+                        exportData()
+                    }
 
-                Button(role: .destructive) {
-                    showingClearAlert = true
-                } label: {
-                    Text("Clear All Data")
+                    Button("Export to Apple Notes") {
+                        exportToAppleNotes()
+                    }
+
+                    Button(role: .destructive) {
+                        showingClearAlert = true
+                    } label: {
+                        Text("Clear All Data")
+                    }
                 }
             }
         }
@@ -112,14 +110,38 @@ struct SettingsView: View {
         }
     }
 
+    private var privacyInfoBanner: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Privacy")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+            Text("All records are stored on this iPhone only. No cloud backend and no iCloud sync in this version.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.tertiarySystemBackground))
+    }
+
     @ViewBuilder
     private func modelRow(for model: WhisperModelVariant, recommended: Bool) -> some View {
+        let thisModelIsDownloading = modelManager.isDownloading(model)
+        let anyModelIsDownloading = modelManager.isDownloading
+
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(recommended ? "\(model.rawValue) (Recommended)" : model.rawValue)
                 Text(modelManager.fileSizeDescription(for: model))
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                if let progress = modelManager.downloadProgressDescription(for: model) {
+                    Text(progress)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
             }
 
             Spacer()
@@ -132,11 +154,10 @@ struct SettingsView: View {
                         modelActionError = error.localizedDescription
                     }
                 }
-                .disabled(modelManager.isDownloading)
+                .disabled(anyModelIsDownloading)
             } else {
-                Button(modelManager.isDownloading ? "Downloading..." : "Download") {
+                Button(thisModelIsDownloading ? "Downloading..." : "Download") {
                     Task {
-                        modelManager.preferredModel = model
                         do {
                             try await modelManager.downloadModel(model)
                         } catch {
@@ -146,7 +167,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .disabled(modelManager.isDownloading)
+                .disabled(anyModelIsDownloading)
             }
         }
     }
@@ -213,7 +234,7 @@ struct SettingsView: View {
             let json = String(data: data, encoding: .utf8)
         {
             exportPayload = json
-            exportSubject = "Contact+Notes JSON Export"
+            exportSubject = "Contacts+Notes JSON Export"
             showingShareSheet = true
         }
     }
@@ -228,7 +249,7 @@ struct SettingsView: View {
         dateOnlyFormatter.timeStyle = .none
 
         var lines: [String] = []
-        lines.append("Contact+Notes")
+        lines.append("Contacts+Notes")
         lines.append("Exported on \(noteTimestampFormatter.string(from: Date()))")
         lines.append("Contacts: \(contacts.count) | Notes: \(notes.count)")
         lines.append("Tip: In the share sheet, choose Notes to save this as a native Apple Note.")
@@ -281,7 +302,7 @@ struct SettingsView: View {
         }
 
         exportPayload = lines.joined(separator: "\n")
-        exportSubject = "Contact+Notes (Readable Export)"
+        exportSubject = "Contacts+Notes (Readable Export)"
         showingShareSheet = true
     }
 

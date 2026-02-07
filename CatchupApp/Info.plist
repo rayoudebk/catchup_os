@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Contact+Notes</string>
+	<string>Contacts+Notes</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -57,5 +57,7 @@
 	<string>Microphone access lets you dictate contact notes with on-device transcription.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Speech recognition is used locally to transcribe your recorded notes.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Calendar access lets you create an event reminder for your contact.</string>
 </dict>
 </plist>

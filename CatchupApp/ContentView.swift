@@ -4,6 +4,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Contact.name, order: .forward) private var contacts: [Contact]
+    @Query private var notes: [ContactNote]
 
     @State private var searchText = ""
     @State private var selectedCircle: SocialCircle?
@@ -12,6 +13,9 @@ struct ContentView: View {
     @State private var startupError: String?
 
     private let categoryManager = CategoryManager.shared
+    private let importGoal = 5
+    private let noteGoal = 3
+    private let giftIdeaGoal = 1
 
     private var filteredContacts: [Contact] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -47,6 +51,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                onboardingBanner
                 socialCircleFilter
 
                 Group {
@@ -65,12 +70,14 @@ struct ContentView: View {
                     }
                 }
             }
-            .navigationTitle("Contact+Notes")
+            .navigationTitle("Contacts+Notes")
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search contacts or notes")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
                         Image(systemName: "gearshape")
+                            .foregroundColor(.secondary)
                     }
                 }
 
@@ -79,6 +86,11 @@ struct ContentView: View {
                         showingAddContact = true
                     } label: {
                         Image(systemName: "plus")
+                            .font(.headline)
+                            .foregroundColor(.accentColor)
+                            .padding(8)
+                            .background(Color.accentColor.opacity(0.18))
+                            .clipShape(Circle())
                     }
                 }
             }
@@ -112,6 +124,51 @@ struct ContentView: View {
             } message: {
                 Text(startupError ?? "")
             }
+        }
+    }
+
+    private var onboardingBanner: some View {
+        let imported = min(contacts.count, importGoal)
+        let recordedNotes = min(notes.count, noteGoal)
+        let giftIdeas = min(
+            contacts.filter { !$0.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count,
+            giftIdeaGoal
+        )
+        let completedUnits = imported + recordedNotes + giftIdeas
+        let totalUnits = importGoal + noteGoal + giftIdeaGoal
+        let progress = Double(completedUnits) / Double(totalUnits)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(completedUnits >= totalUnits ? "Onboarding Complete" : "Onboarding Progress")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+
+            ProgressView(value: progress)
+                .tint(.accentColor)
+
+            Text("\(completedUnits)/\(totalUnits) completed")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            HStack(spacing: 12) {
+                onboardingStepLabel(title: "Import \(importGoal)", value: imported, goal: importGoal)
+                onboardingStepLabel(title: "Record \(noteGoal) notes", value: recordedNotes, goal: noteGoal)
+                onboardingStepLabel(title: "Add 1 gift idea", value: giftIdeas, goal: giftIdeaGoal)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.secondarySystemBackground))
+    }
+
+    private func onboardingStepLabel(title: String, value: Int, goal: Int) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: value >= goal ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(value >= goal ? .green : .secondary)
+            Text("\(title): \(value)/\(goal)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
         }
     }
 

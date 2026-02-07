@@ -13,8 +13,11 @@ struct AddContactView: View {
     @State private var selectedAssignments: [String: SocialCircle] = [:]
     @State private var searchText = ""
     @State private var isLoading = false
+    @State private var isImporting = false
     @State private var permissionDenied = false
     @State private var activeCircle: SocialCircle = .personal
+    @State private var importError: String?
+    @State private var sessionExcludedIdentifiers: Set<String> = []
 
     init(onImportCompleted: (() -> Void)? = nil) {
         self.onImportCompleted = onImportCompleted
@@ -28,8 +31,12 @@ struct AddContactView: View {
         Set(existingContacts.compactMap { $0.contactIdentifier })
     }
 
+    private var excludedIdentifiers: Set<String> {
+        existingIdentifiers.union(sessionExcludedIdentifiers)
+    }
+
     private var availableContacts: [CNContact] {
-        allContacts.filter { !existingIdentifiers.contains($0.identifier) }
+        allContacts.filter { !excludedIdentifiers.contains($0.identifier) }
     }
 
     private var filteredContacts: [CNContact] {
@@ -109,14 +116,22 @@ struct AddContactView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(selectedCount > 0 ? "Import \(selectedCount)" : "Import") {
+                    Button(isImporting ? "Importing..." : (selectedCount > 0 ? "Import \(selectedCount)" : "Import")) {
                         importSelectedContacts()
                     }
-                    .disabled(selectedCount == 0)
+                    .disabled(selectedCount == 0 || isImporting)
                 }
             }
             .task {
                 await loadContacts()
+            }
+            .alert("Import Error", isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )) {
+                Button("OK", role: .cancel) { importError = nil }
+            } message: {
+                Text(importError ?? "")
             }
         }
     }
@@ -264,9 +279,23 @@ struct AddContactView: View {
     }
 
     private func importSelectedContacts() {
-        let byIdentifier = Dictionary(uniqueKeysWithValues: availableContacts.map { ($0.identifier, $0) })
+        guard !isImporting else { return }
+        isImporting = true
+        defer { isImporting = false }
 
-        for (identifier, circle) in selectedAssignments {
+        let selectedSnapshot = selectedAssignments
+        guard !selectedSnapshot.isEmpty else {
+            importError = "Select at least one contact to import."
+            return
+        }
+
+        let excludedAtStart = excludedIdentifiers
+        let byIdentifier = Dictionary(uniqueKeysWithValues: availableContacts.map { ($0.identifier, $0) })
+        var importedIdentifiers: [String] = []
+        var insertedContacts: [Contact] = []
+
+        for (identifier, circle) in selectedSnapshot.sorted(by: { $0.key < $1.key }) {
+            guard !excludedAtStart.contains(identifier) else { continue }
             guard let cnContact = byIdentifier[identifier] else { continue }
 
             let name = displayName(for: cnContact)
@@ -288,10 +317,50 @@ struct AddContactView: View {
                 contactIdentifier: cnContact.identifier
             )
             modelContext.insert(contact)
+            insertedContacts.append(contact)
+            importedIdentifiers.append(identifier)
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            for contact in insertedContacts {
+                modelContext.delete(contact)
+            }
+            importError = "Could not import contacts: \(error.localizedDescription)"
+            return
+        }
+
+        for contact in insertedContacts {
             try? BirthdayReminderManager.shared.scheduleAnnual(for: contact)
         }
 
-        try? modelContext.save()
+        sessionExcludedIdentifiers.formUnion(importedIdentifiers)
+        for identifier in importedIdentifiers {
+            selectedAssignments.removeValue(forKey: identifier)
+        }
+
+        guard !importedIdentifiers.isEmpty else {
+            importError = "No new contacts were imported."
+            return
+        }
+
+        do {
+            let persisted = try modelContext.fetch(FetchDescriptor<Contact>())
+            let persistedIdentifiers = Set(persisted.compactMap(\.contactIdentifier))
+            let missing = importedIdentifiers.filter { !persistedIdentifiers.contains($0) }
+            if !missing.isEmpty {
+                importError = "Import could not be verified. Please try again."
+                return
+            }
+        } catch {
+            importError = "Import verification failed: \(error.localizedDescription)"
+            return
+        }
+
+        let importedSet = Set(importedIdentifiers)
+        allContacts.removeAll { importedSet.contains($0.identifier) }
+
         onImportCompleted?()
         dismiss()
     }

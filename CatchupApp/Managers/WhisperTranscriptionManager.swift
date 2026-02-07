@@ -37,6 +37,9 @@ final class WhisperModelManager: ObservableObject {
 
     @Published private(set) var isDownloading = false
     @Published private(set) var lastDownloadMessage = ""
+    @Published private(set) var activeDownloadModel: WhisperModelVariant?
+    @Published private(set) var downloadTotalBytes: Int64 = 0
+    @Published private(set) var downloadReceivedBytes: Int64 = 0
 
     private let preferredModelKey = "preferredWhisperModel"
     private let fallbackReasonKey = "lastWhisperFallbackReason"
@@ -84,6 +87,27 @@ final class WhisperModelManager: ObservableObject {
         return formatter.string(fromByteCount: size.int64Value)
     }
 
+    func isDownloading(_ variant: WhisperModelVariant) -> Bool {
+        isDownloading && activeDownloadModel == variant
+    }
+
+    func downloadProgressDescription(for variant: WhisperModelVariant) -> String? {
+        guard isDownloading(variant) else { return nil }
+
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useGB, .useMB]
+        formatter.countStyle = .file
+
+        let received = formatter.string(fromByteCount: downloadReceivedBytes)
+        guard downloadTotalBytes > 0 else {
+            return received
+        }
+
+        let total = formatter.string(fromByteCount: downloadTotalBytes)
+        let percent = Int((Double(downloadReceivedBytes) / Double(downloadTotalBytes)) * 100)
+        return "\(received)/\(total) (\(max(0, min(100, percent)))%)"
+    }
+
     func removeModel(_ variant: WhisperModelVariant) throws {
         let fileURL = modelURL(for: variant)
         if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -103,18 +127,18 @@ final class WhisperModelManager: ObservableObject {
         }
 
         isDownloading = true
-        defer { isDownloading = false }
+        activeDownloadModel = variant
+        downloadReceivedBytes = 0
+        downloadTotalBytes = 0
+        defer {
+            isDownloading = false
+            activeDownloadModel = nil
+        }
 
         try ensureModelDirectoryExists()
 
         let remoteURL = remoteModelURL(for: variant)
-        let config = URLSessionConfiguration.default
-        config.allowsExpensiveNetworkAccess = false
-        config.allowsConstrainedNetworkAccess = false
-        config.waitsForConnectivity = true
-
-        let session = URLSession(configuration: config)
-        let (tempURL, _) = try await session.download(from: remoteURL)
+        let tempURL = try await downloadWithProgress(from: remoteURL)
 
         let destinationURL = modelURL(for: variant)
         if FileManager.default.fileExists(atPath: destinationURL.path) {
@@ -129,6 +153,29 @@ final class WhisperModelManager: ObservableObject {
         )
 
         lastDownloadMessage = "Downloaded \(variant.rawValue)"
+    }
+
+    private func downloadWithProgress(from remoteURL: URL) async throws -> URL {
+        let config = URLSessionConfiguration.default
+        config.allowsExpensiveNetworkAccess = false
+        config.allowsConstrainedNetworkAccess = false
+        config.waitsForConnectivity = true
+
+        let delegate = DownloadRelay { [weak self] received, total in
+            Task { @MainActor in
+                self?.downloadReceivedBytes = received
+                self?.downloadTotalBytes = max(0, total)
+            }
+        }
+
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            delegate.continuation = continuation
+            let task = session.downloadTask(with: remoteURL)
+            task.resume()
+        }
     }
 
     private var modelDirectoryURL: URL {
@@ -152,6 +199,37 @@ final class WhisperModelManager: ObservableObject {
             return URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin")!
         case .largeV3Turbo:
             return URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin")!
+        }
+    }
+}
+
+private final class DownloadRelay: NSObject, URLSessionDownloadDelegate {
+    var continuation: CheckedContinuation<URL, Error>?
+    private let onProgress: (Int64, Int64) -> Void
+
+    init(onProgress: @escaping (Int64, Int64) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        onProgress(totalBytesWritten, totalBytesExpectedToWrite)
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        continuation?.resume(returning: location)
+        continuation = nil
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error {
+            continuation?.resume(throwing: error)
+            continuation = nil
         }
     }
 }

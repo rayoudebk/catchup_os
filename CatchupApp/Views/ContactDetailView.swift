@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import AVFoundation
+import EventKit
+import UIKit
 
 struct ContactDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,6 +18,9 @@ struct ContactDetailView: View {
     @State private var recorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var transcriptionError: String?
+    @State private var showingEventSheet = false
+    @State private var eventDate: Date = Date()
+    @State private var eventStatusMessage: String?
 
     private let categoryManager = CategoryManager.shared
 
@@ -27,6 +32,33 @@ struct ContactDetailView: View {
         List {
             Section {
                 headerCard
+            }
+
+            Section("Actions") {
+                Button {
+                    if let phoneNumber = contact.phoneNumber, !phoneNumber.isEmpty {
+                        openWhatsAppCall(phoneNumber: phoneNumber)
+                    }
+                } label: {
+                    Label("WhatsApp Call", systemImage: "phone.fill")
+                }
+                .disabled((contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button {
+                    if let phoneNumber = contact.phoneNumber, !phoneNumber.isEmpty {
+                        openWhatsAppChat(phoneNumber: phoneNumber)
+                    }
+                } label: {
+                    Label("WhatsApp Chat", systemImage: "message.fill")
+                }
+                .disabled((contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button {
+                    eventDate = defaultEventDate()
+                    showingEventSheet = true
+                } label: {
+                    Label("Event", systemImage: "calendar.badge.plus")
+                }
             }
 
             Section("New Note") {
@@ -133,6 +165,36 @@ struct ContactDetailView: View {
         .sheet(isPresented: $showingEditSheet) {
             EditContactView(contact: contact)
         }
+        .sheet(isPresented: $showingEventSheet) {
+            NavigationStack {
+                Form {
+                    DatePicker(
+                        "When",
+                        selection: $eventDate,
+                        in: Date()...,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+                .navigationTitle("Event")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingEventSheet = false
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") {
+                            let date = eventDate
+                            showingEventSheet = false
+                            Task {
+                                await createCalendarEvent(date: date)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         .alert("Delete Contact", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -153,6 +215,17 @@ struct ContactDetailView: View {
             Button("OK", role: .cancel) { transcriptionError = nil }
         } message: {
             Text(transcriptionError ?? "")
+        }
+        .alert(
+            "Calendar",
+            isPresented: Binding(
+                get: { eventStatusMessage != nil },
+                set: { if !$0 { eventStatusMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { eventStatusMessage = nil }
+        } message: {
+            Text(eventStatusMessage ?? "")
         }
     }
 
@@ -240,6 +313,67 @@ struct ContactDetailView: View {
                 .font(.caption2)
                 .foregroundColor(.orange)
         }
+    }
+
+    private func openWhatsAppChat(phoneNumber: String) {
+        let cleanNumber = phoneNumber.filter(\.isNumber)
+        guard let url = URL(string: "https://wa.me/\(cleanNumber)") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openWhatsAppCall(phoneNumber: String) {
+        let cleanNumber = phoneNumber.filter(\.isNumber)
+        guard let url = URL(string: "https://wa.me/\(cleanNumber)?call=1") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func defaultEventDate() -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: calendar.date(byAdding: .day, value: 1, to: now) ?? now) ?? now
+    }
+
+    private func createCalendarEvent(date: Date) async {
+        let eventStore = EKEventStore()
+
+        do {
+            let granted = try await requestCalendarAccess(eventStore: eventStore)
+            guard granted else {
+                await MainActor.run {
+                    eventStatusMessage = "Calendar access is required to create events."
+                }
+                return
+            }
+
+            let event = EKEvent(eventStore: eventStore)
+            event.title = "Reminder: connect with \(contact.name)"
+            event.startDate = date
+            event.endDate = Calendar.current.date(byAdding: .minute, value: 30, to: date) ?? date.addingTimeInterval(1800)
+            event.calendar = eventStore.defaultCalendarForNewEvents
+
+            var notes: [String] = []
+            if let phone = contact.phoneNumber, !phone.isEmpty {
+                notes.append("Phone: \(phone)")
+            }
+            if let email = contact.email, !email.isEmpty {
+                notes.append("Email: \(email)")
+            }
+            event.notes = notes.joined(separator: "\n")
+
+            try eventStore.save(event, span: .thisEvent)
+
+            await MainActor.run {
+                eventStatusMessage = "Event added to Calendar."
+            }
+        } catch {
+            await MainActor.run {
+                eventStatusMessage = "Could not create event: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func requestCalendarAccess(eventStore: EKEventStore) async throws -> Bool {
+        try await eventStore.requestFullAccessToEvents()
     }
 
     private func saveNote() {
