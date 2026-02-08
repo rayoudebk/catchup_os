@@ -3,15 +3,84 @@ import SwiftData
 
 @main
 struct CatchupApp: App {
+    @AppStorage("appColorMode") private var appColorModeRawValue = AppColorMode.system.rawValue
+
     init() {
         LocalDataProtection.applyBestEffort()
+    }
+
+    private var appColorMode: AppColorMode {
+        AppColorMode(rawValue: appColorModeRawValue) ?? .system
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(appColorMode.colorScheme)
         }
         .modelContainer(for: [Contact.self, ContactNote.self, ContactReminder.self, CheckIn.self])
+    }
+}
+
+enum AppColorMode: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system:
+            return "System"
+        case .light:
+            return "Light"
+        case .dark:
+            return "Dark"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .system:
+            return "circle.lefthalf.filled"
+        case .light:
+            return "sun.max.fill"
+        case .dark:
+            return "moon.fill"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+}
+
+enum TranscriptionLanguageOption: String, CaseIterable, Identifiable {
+    case englishUS = "en-US"
+    case frenchFR = "fr-FR"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .englishUS:
+            return "English"
+        case .frenchFR:
+            return "French"
+        }
+    }
+
+    static func fromCurrentLocale() -> TranscriptionLanguageOption {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        return code.lowercased().hasPrefix("fr") ? .frenchFR : .englishUS
     }
 }
 

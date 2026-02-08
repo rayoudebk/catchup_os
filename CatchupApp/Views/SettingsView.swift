@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Query private var contacts: [Contact]
     @Query private var notes: [ContactNote]
     @Query private var legacyCheckIns: [CheckIn]
+    @AppStorage("appColorMode") private var appColorModeRawValue = AppColorMode.system.rawValue
 
     @StateObject private var modelManager = WhisperModelManager.shared
 
@@ -23,6 +24,28 @@ struct SettingsView: View {
             privacyInfoBanner
 
             List {
+                Section("Appearance") {
+                    HStack(spacing: 8) {
+                        ForEach(AppColorMode.allCases) { mode in
+                            Button {
+                                appColorModeRawValue = mode.rawValue
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: mode.icon)
+                                    Text(mode.title)
+                                        .font(.subheadline)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(currentColorMode == mode ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+                                .foregroundColor(currentColorMode == mode ? .accentColor : .primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 Section("Birthday Reminders") {
                     HStack {
                         Text("Permission")
@@ -108,6 +131,10 @@ struct SettingsView: View {
         .onAppear {
             refreshNotificationStatus()
         }
+    }
+
+    private var currentColorMode: AppColorMode {
+        AppColorMode(rawValue: appColorModeRawValue) ?? .system
     }
 
     private var privacyInfoBanner: some View {
@@ -214,6 +241,8 @@ struct SettingsView: View {
                 "id": note.id.uuidString,
                 "createdAt": note.createdAt.ISO8601Format(),
                 "updatedAt": note.updatedAt.ISO8601Format(),
+                "headline": note.headline ?? "",
+                "summary": note.summary ?? "",
                 "body": note.body,
                 "source": note.source.rawValue,
                 "transcriptLanguage": note.transcriptLanguage ?? "",
@@ -293,8 +322,18 @@ struct SettingsView: View {
                 for note in contact.sortedNotes {
                     let noteDate = noteTimestampFormatter.string(from: note.createdAt)
                     let source = note.source.rawValue
+                    let headline = (note.headline ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let summary = (note.summary ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                     let text = note.body.replacingOccurrences(of: "\n", with: "\n  ")
-                    lines.append("- [\(noteDate)] (\(source)) \(text)")
+                    if !headline.isEmpty {
+                        lines.append("- [\(noteDate)] (\(source)) \(headline)")
+                        if !summary.isEmpty {
+                            lines.append("  Summary: \(summary)")
+                        }
+                        lines.append("  \(text)")
+                    } else {
+                        lines.append("- [\(noteDate)] (\(source)) \(text)")
+                    }
                 }
             }
 

@@ -1,6 +1,6 @@
 import SwiftUI
 import SwiftData
-import Contacts
+@preconcurrency import Contacts
 import OSLog
 
 struct AddContactView: View {
@@ -268,12 +268,8 @@ struct AddContactView: View {
         ]
 
         let request = CNContactFetchRequest(keysToFetch: keys)
-
-        var loaded: [CNContact] = []
         do {
-            try store.enumerateContacts(with: request) { contact, _ in
-                loaded.append(contact)
-            }
+            let loaded = try await fetchContacts(store: store, request: request)
             allContacts = loaded.sorted {
                 displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending
             }
@@ -281,6 +277,22 @@ struct AddContactView: View {
         } catch {
             logger.error("Failed loading contacts: \(error.localizedDescription, privacy: .public)")
             permissionDenied = true
+        }
+    }
+
+    private func fetchContacts(store: CNContactStore, request: CNContactFetchRequest) async throws -> [CNContact] {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var loaded: [CNContact] = []
+                do {
+                    try store.enumerateContacts(with: request) { contact, _ in
+                        loaded.append(contact)
+                    }
+                    continuation.resume(returning: loaded)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
     }
 

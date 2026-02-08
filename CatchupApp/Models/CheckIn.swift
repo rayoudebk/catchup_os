@@ -12,6 +12,8 @@ final class ContactNote: Identifiable {
     var id: UUID
     var createdAt: Date
     var updatedAt: Date
+    var headline: String?
+    var summary: String?
     var body: String
     var sourceRawValue: String
     var transcriptLanguage: String?
@@ -21,6 +23,8 @@ final class ContactNote: Identifiable {
     init(
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
+        headline: String? = nil,
+        summary: String? = nil,
         body: String,
         source: NoteSource = .typed,
         transcriptLanguage: String? = nil,
@@ -30,6 +34,8 @@ final class ContactNote: Identifiable {
         self.id = UUID()
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.headline = headline
+        self.summary = summary
         self.body = body
         self.sourceRawValue = source.rawValue
         self.transcriptLanguage = transcriptLanguage

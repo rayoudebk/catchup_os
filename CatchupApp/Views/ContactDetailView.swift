@@ -11,17 +11,29 @@ struct ContactDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingDeleteAlert = false
 
+    @State private var composerHeadline = ""
     @State private var composerText = ""
     @State private var composerSource: NoteSource = .typed
+    @State private var isNoteComposerExpanded = true
+
     @State private var isRecording = false
     @State private var isTranscribing = false
     @State private var recorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var transcriptionError: String?
+    @State private var transcriptionLanguage: TranscriptionLanguageOption = .englishUS
+    @State private var showComposerLanguageSelector = false
+
     @State private var reminderDraft = ""
+    @State private var giftIdeaDraft = ""
     @State private var showingEventSheet = false
     @State private var eventDate: Date = Date()
     @State private var eventStatusMessage: String?
+
+    @State private var editingNote: ContactNote?
+    @State private var editHeadline = ""
+    @State private var editSummary = ""
+    @State private var editContent = ""
 
     private let categoryManager = CategoryManager.shared
 
@@ -29,154 +41,38 @@ struct ContactDetailView: View {
         contact.sortedNotes
     }
 
+    private var circleDefinition: SocialCircleDefinition {
+        categoryManager.definition(for: contact.socialCircle)
+    }
+
     var body: some View {
         List {
             Section {
-                headerCard
+                profileHeader
             }
 
-            Section("Actions") {
-                Button {
-                    if let phoneNumber = contact.phoneNumber, !phoneNumber.isEmpty {
-                        openWhatsAppCall(phoneNumber: phoneNumber)
-                    }
-                } label: {
-                    Label("WhatsApp Call", systemImage: "phone.fill")
-                }
-                .disabled((contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Section {
+                noteComposerCard
+            }
 
-                Button {
-                    if let phoneNumber = contact.phoneNumber, !phoneNumber.isEmpty {
-                        openWhatsAppChat(phoneNumber: phoneNumber)
-                    }
-                } label: {
-                    Label("WhatsApp Chat", systemImage: "message.fill")
-                }
-                .disabled((contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                Button {
-                    eventDate = defaultEventDate()
-                    showingEventSheet = true
-                } label: {
-                    Label("Event", systemImage: "calendar.badge.plus")
-                }
+            Section("Reach out") {
+                actionCards
             }
 
             Section("Reminders") {
-                HStack(spacing: 8) {
-                    TextField("Add reminder", text: $reminderDraft)
-                        .textInputAutocapitalization(.sentences)
-
-                    Button {
-                        addReminder()
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(reminderDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-
-                if contact.sortedReminders.isEmpty {
-                    Text("No reminders yet")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(contact.sortedReminders) { reminder in
-                        HStack(spacing: 10) {
-                            Button {
-                                toggleReminder(reminder)
-                            } label: {
-                                Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(reminder.isCompleted ? .green : .secondary)
-                            }
-                            .buttonStyle(.plain)
-
-                            Text(reminder.title)
-                                .strikethrough(reminder.isCompleted, color: .secondary)
-                                .foregroundColor(reminder.isCompleted ? .secondary : .primary)
-
-                            Spacer()
-
-                            Button(role: .destructive) {
-                                deleteReminder(reminder)
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+                reminderChecklist
             }
 
-            Section("New Note") {
-                VStack(alignment: .leading, spacing: 8) {
-                    TextEditor(text: $composerText)
-                        .frame(minHeight: 120)
-
-                    if isTranscribing {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Transcribing on device...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    HStack {
-                        Button {
-                            toggleRecording()
-                        } label: {
-                            Label(
-                                isRecording ? "Stop Recording" : "Record Voice",
-                                systemImage: isRecording ? "stop.circle.fill" : "mic.circle.fill"
-                            )
-                            .foregroundColor(isRecording ? .red : .blue)
-                        }
-
-                        Spacer()
-
-                        Button("Save Note") {
-                            saveNote()
-                        }
-                        .disabled(composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isTranscribing)
-                    }
-                }
+            Section {
+                giftIdeaCard
+            } header: {
+                Label("Next Gift Idea", systemImage: "gift.fill")
             }
 
-            Section("Timeline") {
-                if sortedNotes.isEmpty {
-                    Text("No notes yet")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(sortedNotes) { note in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(note.createdAt, style: .date)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(note.createdAt, style: .time)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                noteSourceBadge(note.source)
-                            }
-
-                            Text(note.body)
-                                .font(.body)
-                        }
-                        .padding(.vertical, 4)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteNote(note)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
+            Section("Notes Record") {
+                notesTimeline
             }
         }
-        .navigationTitle(contact.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -213,34 +109,10 @@ struct ContactDetailView: View {
             EditContactView(contact: contact)
         }
         .sheet(isPresented: $showingEventSheet) {
-            NavigationStack {
-                Form {
-                    DatePicker(
-                        "When",
-                        selection: $eventDate,
-                        in: Date()...,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                }
-                .navigationTitle("Event")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            showingEventSheet = false
-                        }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") {
-                            let date = eventDate
-                            showingEventSheet = false
-                            Task {
-                                await createCalendarEvent(date: date)
-                            }
-                        }
-                    }
-                }
-            }
+            eventSheet
+        }
+        .sheet(item: $editingNote) { _ in
+            editNoteSheet
         }
         .alert("Delete Contact", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) {}
@@ -274,74 +146,421 @@ struct ContactDetailView: View {
         } message: {
             Text(eventStatusMessage ?? "")
         }
+        .onAppear {
+            giftIdeaDraft = contact.giftIdea
+            transcriptionLanguage = TranscriptionLanguageOption.fromCurrentLocale()
+        }
     }
 
-    private var headerCard: some View {
-        let circle = categoryManager.definition(for: contact.socialCircle)
+    private var profileHeader: some View {
+        VStack(spacing: 10) {
+            Text(contact.name)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, alignment: .center)
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(contact.name)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-
-                    if let phone = contact.phoneNumber, !phone.isEmpty {
-                        Text(phone)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-
-                    if let email = contact.email, !email.isEmpty {
-                        Text(email)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                if contact.isFavorite {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                }
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: circle.icon)
-                    .foregroundColor(circle.color)
-                Text(circle.title)
+            let line = contactLine
+            if !line.isEmpty {
+                Text(line)
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
 
-            if let birthday = contact.birthday {
-                Divider()
-
-                HStack {
-                    Label("Birthday", systemImage: "gift.fill")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text(birthday.formatted(date: .abbreviated, time: .omitted))
-                }
-
-                if !contact.birthdayNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(contact.birthdayNote)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            if !contact.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Divider()
-                Text("Gift Idea")
+            HStack(spacing: 12) {
+                if let birthday = contact.birthday {
+                    HStack(spacing: 4) {
+                        Image(systemName: "gift")
+                        Text(birthday.formatted(date: .abbreviated, time: .omitted))
+                    }
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text(contact.giftIdea)
-                    .font(.subheadline)
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: circleDefinition.icon)
+                        .foregroundColor(circleDefinition.color)
+                    Text(circleDefinition.title)
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.vertical, 4)
+    }
+
+    private var noteComposerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Note", systemImage: "square.and.pencil")
+                    .font(.headline)
+                Spacer()
+                if isRecording {
+                    Text("Recording")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                }
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isNoteComposerExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isNoteComposerExpanded ? "chevron.up" : "chevron.down")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if isNoteComposerExpanded {
+                Divider()
+
+                TextField("Note headline", text: $composerHeadline)
+                    .fontWeight(.semibold)
+                    .textInputAutocapitalization(.sentences)
+
+                Divider()
+
+                TextEditor(text: $composerText)
+                    .frame(minHeight: 200)
+
+                if isTranscribing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Transcribing on device...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if showComposerLanguageSelector {
+                    HStack(spacing: 8) {
+                        Text("Speech language")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        languageChip(.englishUS, short: "ENG")
+                        languageChip(.frenchFR, short: "FR")
+                        Spacer()
+                    }
+                }
+
+                HStack(spacing: 10) {
+                    // Tap mic to reveal language selector, then hold to record.
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            showComposerLanguageSelector.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isRecording ? "mic.fill" : "mic")
+                            .font(.headline)
+                            .frame(width: 40, height: 40)
+                            .background(isRecording ? Color.red.opacity(0.2) : Color(.secondarySystemBackground))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .onLongPressGesture(minimumDuration: 0.2, maximumDistance: 80, pressing: { pressing in
+                        if pressing {
+                            if !isRecording { startRecording() }
+                        } else if isRecording {
+                            stopRecordingAndTranscribe()
+                        }
+                    }, perform: {})
+
+                    Spacer()
+
+                    Button("Save") {
+                        saveNote()
+                    }
+                    .disabled(allComposerFieldsEmpty || isTranscribing)
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+    }
+
+    private var actionCards: some View {
+        HStack(spacing: 10) {
+            actionTile(
+                title: "Call",
+                systemImage: "phone.fill",
+                enabled: hasPhone,
+                color: .green
+            ) {
+                if let phone = contact.phoneNumber {
+                    openWhatsAppCall(phoneNumber: phone)
+                }
+            }
+
+            actionTile(
+                title: "Message",
+                systemImage: "message.fill",
+                enabled: hasPhone,
+                color: .blue
+            ) {
+                if let phone = contact.phoneNumber {
+                    openWhatsAppChat(phoneNumber: phone)
+                }
+            }
+
+            actionTile(
+                title: "Calendar",
+                systemImage: "calendar.badge.plus",
+                enabled: true,
+                color: .orange
+            ) {
+                eventDate = defaultEventDate()
+                showingEventSheet = true
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private func actionTile(
+        title: String,
+        systemImage: String,
+        enabled: Bool,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color(.secondarySystemBackground))
+            .foregroundColor(enabled ? color : .secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1.0 : 0.5)
+    }
+
+    private var reminderChecklist: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("Add reminder", text: $reminderDraft)
+                    .textInputAutocapitalization(.sentences)
+
+                Button {
+                    addReminder()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.plain)
+                .disabled(reminderDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if !contact.sortedReminders.isEmpty {
+                ForEach(contact.sortedReminders) { reminder in
+                    HStack(spacing: 10) {
+                        Button {
+                            toggleReminder(reminder)
+                        } label: {
+                            Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(reminder.isCompleted ? .green : .secondary)
+                        }
+                        .buttonStyle(.plain)
+
+                        Text(reminder.title)
+                            .strikethrough(reminder.isCompleted, color: .secondary)
+                            .foregroundColor(reminder.isCompleted ? .secondary : .primary)
+
+                        Spacer()
+
+                        Button(role: .destructive) {
+                            deleteReminder(reminder)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private var giftIdeaCard: some View {
+        HStack(spacing: 8) {
+            TextField("Add a gift idea", text: $giftIdeaDraft)
+                .textInputAutocapitalization(.sentences)
+
+            Button {
+                saveGiftIdea()
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title3)
+            }
+            .disabled(giftIdeaUnchanged)
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var notesTimeline: some View {
+        if sortedNotes.isEmpty {
+            Text("No notes yet")
+                .foregroundColor(.secondary)
+        } else {
+            ForEach(sortedNotes) { note in
+                let details = noteDetails(for: note)
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(details.headline)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .lineLimit(1)
+
+                        HStack(spacing: 8) {
+                            Text(note.createdAt, style: .date)
+                            Text(note.createdAt, style: .time)
+                            noteSourceBadge(note.source)
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        beginEditing(note: note)
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        deleteNote(note)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+            }
+        }
+    }
+
+    private var eventSheet: some View {
+        NavigationStack {
+            Form {
+                DatePicker(
+                    "When",
+                    selection: $eventDate,
+                    in: Date()...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+            }
+            .navigationTitle("Event")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        showingEventSheet = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        let date = eventDate
+                        showingEventSheet = false
+                        Task {
+                            await createCalendarEvent(date: date)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var editNoteSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("Headline", text: $editHeadline)
+                    .fontWeight(.semibold)
+                    .textInputAutocapitalization(.sentences)
+
+                Divider()
+
+                TextField("Summary", text: $editSummary)
+                    .textInputAutocapitalization(.sentences)
+
+                Divider()
+
+                TextEditor(text: $editContent)
+                    .frame(minHeight: 220)
+
+                Button(role: .destructive) {
+                    deleteEditingNote()
+                } label: {
+                    Label("Delete Note", systemImage: "trash")
+                }
+            }
+            .padding()
+            .navigationTitle("Edit Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        editingNote = nil
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveEditedNote()
+                    }
+                }
+            }
+        }
+    }
+
+    private var contactLine: String {
+        [contact.phoneNumber, contact.email]
+            .compactMap { value in
+                let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return trimmed.isEmpty ? nil : trimmed
+            }
+            .joined(separator: "  •  ")
+    }
+
+    private var hasPhone: Bool {
+        !(contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var allComposerFieldsEmpty: Bool {
+        composerHeadline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var giftIdeaUnchanged: Bool {
+        giftIdeaDraft.trimmingCharacters(in: .whitespacesAndNewlines) == contact.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func languageChip(_ option: TranscriptionLanguageOption, short: String) -> some View {
+        Button(short) {
+            transcriptionLanguage = option
+            withAnimation(.easeInOut(duration: 0.15)) {
+                showComposerLanguageSelector = false
+            }
+        }
+        .font(.caption)
+        .fontWeight(.semibold)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(transcriptionLanguage == option ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+        .foregroundColor(transcriptionLanguage == option ? .accentColor : .secondary)
+        .clipShape(Capsule())
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -349,17 +568,85 @@ struct ContactDetailView: View {
         switch source {
         case .typed:
             Text("typed")
-                .font(.caption2)
-                .foregroundColor(.secondary)
         case .voice:
             Text("voice")
-                .font(.caption2)
                 .foregroundColor(.blue)
         case .migratedLegacy:
             Text("legacy")
-                .font(.caption2)
                 .foregroundColor(.orange)
         }
+    }
+
+    private func noteDetails(for note: ContactNote) -> ParsedNoteDetails {
+        let title = sanitized(note.headline)
+        let summary = sanitized(note.summary)
+        let content = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let fallbackHeadline: String
+        if !title.isEmpty {
+            fallbackHeadline = title
+        } else if !content.isEmpty {
+            fallbackHeadline = String(content.prefix(60))
+        } else {
+            fallbackHeadline = "Note"
+        }
+
+        let fallbackSummary: String
+        if !summary.isEmpty {
+            fallbackSummary = summary
+        } else {
+            fallbackSummary = ""
+        }
+
+        return ParsedNoteDetails(
+            headline: fallbackHeadline,
+            summary: fallbackSummary
+        )
+    }
+
+    private func sanitized(_ value: String?) -> String {
+        value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private func beginEditing(note: ContactNote) {
+        editHeadline = sanitized(note.headline)
+        editSummary = sanitized(note.summary)
+        editContent = note.body
+        editingNote = note
+    }
+
+    private func saveEditedNote() {
+        guard let note = editingNote else { return }
+
+        let trimmedHeadline = sanitized(editHeadline)
+        let trimmedSummary = sanitized(editSummary)
+        let trimmedContent = editContent.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedHeadline.isEmpty || !trimmedSummary.isEmpty || !trimmedContent.isEmpty else { return }
+
+        let finalBody: String
+        if !trimmedContent.isEmpty {
+            finalBody = trimmedContent
+        } else {
+            finalBody = [trimmedHeadline, trimmedSummary]
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+        }
+
+        note.headline = trimmedHeadline.isEmpty ? nil : trimmedHeadline
+        note.summary = trimmedSummary.isEmpty ? nil : trimmedSummary
+        note.body = finalBody
+        note.updatedAt = Date()
+
+        try? modelContext.save()
+        editingNote = nil
+    }
+
+    private func deleteEditingNote() {
+        guard let note = editingNote else { return }
+        modelContext.delete(note)
+        try? modelContext.save()
+        editingNote = nil
     }
 
     private func openWhatsAppChat(phoneNumber: String) {
@@ -424,15 +711,25 @@ struct ContactDetailView: View {
     }
 
     private func saveNote() {
-        let trimmed = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        let trimmedHeadline = composerHeadline.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedContent = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedHeadline.isEmpty || !trimmedContent.isEmpty else { return }
+
+        let body: String
+        if !trimmedContent.isEmpty {
+            body = trimmedContent
+        } else {
+            body = trimmedHeadline
+        }
 
         let note = ContactNote(
             createdAt: Date(),
             updatedAt: Date(),
-            body: trimmed,
+            headline: trimmedHeadline.isEmpty ? nil : trimmedHeadline,
+            summary: nil,
+            body: body,
             source: composerSource,
-            transcriptLanguage: Locale.current.identifier,
+            transcriptLanguage: transcriptionLanguage.rawValue,
             audioDurationSec: nil,
             contact: contact
         )
@@ -440,8 +737,14 @@ struct ContactDetailView: View {
         modelContext.insert(note)
         try? modelContext.save()
 
+        composerHeadline = ""
         composerText = ""
         composerSource = .typed
+    }
+
+    private func saveGiftIdea() {
+        contact.giftIdea = giftIdeaDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? modelContext.save()
     }
 
     private func addReminder() {
@@ -473,14 +776,6 @@ struct ContactDetailView: View {
     private func deleteNote(_ note: ContactNote) {
         modelContext.delete(note)
         try? modelContext.save()
-    }
-
-    private func toggleRecording() {
-        if isRecording {
-            stopRecordingAndTranscribe()
-        } else {
-            startRecording()
-        }
     }
 
     private func startRecording() {
@@ -540,7 +835,7 @@ struct ContactDetailView: View {
             do {
                 let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
                     audioURL: audioURL,
-                    localeIdentifier: Locale.current.identifier
+                    localeIdentifier: transcriptionLanguage.rawValue
                 )
                 await MainActor.run {
                     if composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -561,4 +856,10 @@ struct ContactDetailView: View {
             }
         }
     }
+
+}
+
+private struct ParsedNoteDetails {
+    let headline: String
+    let summary: String
 }

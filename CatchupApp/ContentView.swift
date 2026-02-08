@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -48,11 +49,11 @@ struct ContentView: View {
     }
 
     private var completedContactStep: Bool {
-        contacts.count >= 1
+        contacts.count >= 5
     }
 
     private var completedNoteStep: Bool {
-        notes.count >= 1
+        notes.count >= 3
     }
 
     private var completedGiftStep: Bool {
@@ -180,7 +181,9 @@ struct ContentView: View {
     }
 
     private func onboardingCard(for step: OnboardingStep) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let progress = progressFor(step)
+
+        return VStack(alignment: .leading, spacing: 10) {
             Text("Onboarding")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -188,21 +191,16 @@ struct ContentView: View {
             Text(step.title)
                 .font(.headline)
 
-            Text(step.subtitle)
-                .font(.subheadline)
+            ProgressView(value: Double(progress.current), total: Double(progress.goal))
+
+            Text("\(progress.current)/\(progress.goal) completed")
+                .font(.caption)
                 .foregroundColor(.secondary)
 
             HStack {
                 Text("Step \(step.stepNumber) of 3")
                     .font(.caption)
                     .foregroundColor(.secondary)
-
-                Spacer()
-
-                Button(step.actionTitle) {
-                    handleOnboardingAction(step)
-                }
-                .buttonStyle(.borderedProminent)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -211,14 +209,15 @@ struct ContentView: View {
         .background(Color(.secondarySystemBackground))
     }
 
-    private func handleOnboardingAction(_ step: OnboardingStep) {
+    private func progressFor(_ step: OnboardingStep) -> (current: Int, goal: Int) {
         switch step {
         case .addContact:
-            showingAddContact = true
+            return (min(contacts.count, 5), 5)
         case .recordNote:
-            showingQuickNoteComposer = true
+            return (min(notes.count, 3), 3)
         case .addGiftIdea:
-            showingQuickGiftIdeaEditor = true
+            let count = contacts.filter { !$0.giftIdea.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.count
+            return (min(count, 1), 1)
         }
     }
 
@@ -309,9 +308,9 @@ private enum OnboardingStep {
     var title: String {
         switch self {
         case .addContact:
-            return "Add your first contact"
+            return "Add 5 contacts"
         case .recordNote:
-            return "Record your first note"
+            return "Record 3 notes"
         case .addGiftIdea:
             return "Add a gift idea"
         }
@@ -320,22 +319,11 @@ private enum OnboardingStep {
     var subtitle: String {
         switch self {
         case .addContact:
-            return "Import one contact from your address book to get started."
+            return "Import contacts from your address book."
         case .recordNote:
-            return "Create one note for any contact to start building context."
+            return "Create notes to build your relationship memory."
         case .addGiftIdea:
             return "Add a gift idea on one profile to complete onboarding."
-        }
-    }
-
-    var actionTitle: String {
-        switch self {
-        case .addContact:
-            return "Add Contact"
-        case .recordNote:
-            return "New Note"
-        case .addGiftIdea:
-            return "Add Gift Idea"
         }
     }
 }
@@ -346,7 +334,14 @@ private struct QuickNoteComposerView: View {
     @Query(sort: \Contact.name, order: .forward) private var contacts: [Contact]
 
     @State private var selectedContactID: UUID?
+    @State private var noteHeadline = ""
     @State private var noteText = ""
+    @State private var transcriptionLanguage: TranscriptionLanguageOption = .englishUS
+    @State private var showLanguageSelector = false
+    @State private var isRecording = false
+    @State private var isTranscribing = false
+    @State private var recorder: AVAudioRecorder?
+    @State private var recordingURL: URL?
     @State private var composerError: String?
 
     init(preselectedContactID: UUID? = nil) {
@@ -369,8 +364,57 @@ private struct QuickNoteComposerView: View {
                 }
 
                 Section("Note") {
+                    TextField("Note headline", text: $noteHeadline)
+                        .fontWeight(.semibold)
+                        .textInputAutocapitalization(.sentences)
+
                     TextEditor(text: $noteText)
                         .frame(minHeight: 150)
+
+                    if isTranscribing {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Transcribing on device...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if showLanguageSelector {
+                        HStack(spacing: 8) {
+                            Text("Speech language")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+
+                            languageChip(.englishUS, short: "ENG")
+                            languageChip(.frenchFR, short: "FR")
+                            Spacer()
+                        }
+                    }
+
+                    HStack {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showLanguageSelector.toggle()
+                            }
+                        } label: {
+                            Image(systemName: isRecording ? "mic.fill" : "mic")
+                                .font(.headline)
+                                .frame(width: 40, height: 40)
+                                .background(isRecording ? Color.red.opacity(0.2) : Color(.secondarySystemBackground))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .onLongPressGesture(minimumDuration: 0.2, maximumDistance: 80, pressing: { pressing in
+                            if pressing {
+                                if !isRecording { startRecording() }
+                            } else if isRecording {
+                                stopRecordingAndTranscribe()
+                            }
+                        }, perform: {})
+
+                        Spacer()
+                    }
                 }
             }
             .navigationTitle("New Note")
@@ -386,7 +430,9 @@ private struct QuickNoteComposerView: View {
                     .disabled(
                         contacts.isEmpty ||
                         selectedContact == nil ||
-                        noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        (noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                         noteHeadline.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
+                        isTranscribing
                     )
                 }
             }
@@ -407,6 +453,14 @@ private struct QuickNoteComposerView: View {
                 if selectedContactID == nil {
                     selectedContactID = contacts.first?.id
                 }
+                transcriptionLanguage = TranscriptionLanguageOption.fromCurrentLocale()
+            }
+            .onDisappear {
+                if isRecording {
+                    recorder?.stop()
+                    recorder = nil
+                    isRecording = false
+                }
             }
         }
     }
@@ -416,20 +470,47 @@ private struct QuickNoteComposerView: View {
         return contacts.first(where: { $0.id == selectedContactID })
     }
 
+    private func languageChip(_ option: TranscriptionLanguageOption, short: String) -> some View {
+        Button(short) {
+            transcriptionLanguage = option
+            withAnimation(.easeInOut(duration: 0.15)) {
+                showLanguageSelector = false
+            }
+        }
+        .font(.caption)
+        .fontWeight(.semibold)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(transcriptionLanguage == option ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+        .foregroundColor(transcriptionLanguage == option ? .accentColor : .secondary)
+        .clipShape(Capsule())
+        .buttonStyle(.plain)
+    }
+
     private func save() {
+        let trimmedHeadline = noteHeadline.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmedHeadline.isEmpty || !trimmed.isEmpty else { return }
         guard let selectedContact else {
             composerError = "Please select a contact."
             return
         }
 
+        let body: String
+        if !trimmed.isEmpty {
+            body = trimmed
+        } else {
+            body = trimmedHeadline
+        }
+
         let note = ContactNote(
             createdAt: Date(),
             updatedAt: Date(),
-            body: trimmed,
+            headline: trimmedHeadline.isEmpty ? nil : trimmedHeadline,
+            summary: nil,
+            body: body,
             source: .typed,
-            transcriptLanguage: Locale.current.identifier,
+            transcriptLanguage: transcriptionLanguage.rawValue,
             audioDurationSec: nil,
             contact: selectedContact
         )
@@ -441,6 +522,86 @@ private struct QuickNoteComposerView: View {
             dismiss()
         } catch {
             composerError = "Could not save note: \(error.localizedDescription)"
+        }
+    }
+
+    private func startRecording() {
+        let session = AVAudioSession.sharedInstance()
+
+        let permissionHandler: (Bool) -> Void = { granted in
+            guard granted else {
+                DispatchQueue.main.async {
+                    composerError = "Microphone access is required to use speech-to-text."
+                }
+                return
+            }
+
+            DispatchQueue.main.async {
+                do {
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+                    try session.setActive(true)
+
+                    let url = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("m4a")
+
+                    let settings: [String: Any] = [
+                        AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                        AVSampleRateKey: 44_100,
+                        AVNumberOfChannelsKey: 1,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                    ]
+
+                    let recorder = try AVAudioRecorder(url: url, settings: settings)
+                    recorder.record()
+
+                    self.recorder = recorder
+                    self.recordingURL = url
+                    self.isRecording = true
+                } catch {
+                    composerError = "Could not start recording: \(error.localizedDescription)"
+                }
+            }
+        }
+
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermission(completionHandler: permissionHandler)
+        } else {
+            session.requestRecordPermission(permissionHandler)
+        }
+    }
+
+    private func stopRecordingAndTranscribe() {
+        recorder?.stop()
+        recorder = nil
+        isRecording = false
+
+        guard let audioURL = recordingURL else { return }
+        isTranscribing = true
+
+        Task {
+            do {
+                let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
+                    audioURL: audioURL,
+                    localeIdentifier: transcriptionLanguage.rawValue
+                )
+
+                await MainActor.run {
+                    if noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        noteText = text
+                    } else {
+                        noteText += "\n\n\(text)"
+                    }
+                    isTranscribing = false
+                    try? FileManager.default.removeItem(at: audioURL)
+                }
+            } catch {
+                await MainActor.run {
+                    composerError = error.localizedDescription
+                    isTranscribing = false
+                    try? FileManager.default.removeItem(at: audioURL)
+                }
+            }
         }
     }
 }
