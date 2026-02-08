@@ -365,6 +365,11 @@ final class WhisperOnDeviceTranscriptionService: TranscriptionService {
             return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
         }
 
+        if preferred == .largeV3Turbo, modelManager.isModelAvailable(.largeV3) {
+            modelManager.setFallbackReason("large-v3-turbo missing, using large-v3")
+            return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
+        }
+
         throw WhisperServiceError.missingModel
     }
 

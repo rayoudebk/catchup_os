@@ -184,7 +184,7 @@ struct ContentView: View {
         let progress = progressFor(step)
 
         return VStack(alignment: .leading, spacing: 10) {
-            Text("Onboarding")
+            Text("Get started !")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -323,7 +323,7 @@ private enum OnboardingStep {
         case .recordNote:
             return "Create notes to build your relationship memory."
         case .addGiftIdea:
-            return "Add a gift idea on one profile to complete onboarding."
+            return "Add a gift idea on one profile to complete setup."
         }
     }
 }
@@ -526,6 +526,11 @@ private struct QuickNoteComposerView: View {
     }
 
     private func startRecording() {
+        guard hasAnyDownloadedTranscriptionModel() else {
+            composerError = "Voice transcription model not downloaded. Go to Settings and download a model first."
+            return
+        }
+
         let session = AVAudioSession.sharedInstance()
 
         let permissionHandler: (Bool) -> Void = { granted in
@@ -569,6 +574,11 @@ private struct QuickNoteComposerView: View {
         } else {
             session.requestRecordPermission(permissionHandler)
         }
+    }
+
+    private func hasAnyDownloadedTranscriptionModel() -> Bool {
+        let manager = WhisperModelManager.shared
+        return WhisperModelVariant.allCases.contains { manager.isModelAvailable($0) }
     }
 
     private func stopRecordingAndTranscribe() {

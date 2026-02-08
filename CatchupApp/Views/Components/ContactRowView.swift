@@ -30,16 +30,22 @@ struct ContactRowView: View {
                     Text(category.title)
                         .font(.caption)
                         .foregroundColor(.secondary)
+
+                    if let birthday = contact.birthday {
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Image(systemName: "gift.fill")
+                            .font(.caption2)
+                            .foregroundColor(.pink)
+                        Text(birthday.formatted(date: .abbreviated, time: .omitted))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                if let birthday = contact.birthday {
-                    Text("Birthday: \(birthday.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                if let latest = contact.latestNote {
-                    Text(latest.body)
+                if let latest = contact.latestNote, let latestTitle = latestNoteTitle(for: latest) {
+                    Text(latestTitle)
                         .font(.subheadline)
                         .lineLimit(1)
                         .foregroundColor(.secondary)
@@ -57,6 +63,23 @@ struct ContactRowView: View {
             Spacer()
         }
         .padding(.vertical, 4)
+    }
+
+    private func latestNoteTitle(for latest: ContactNote) -> String? {
+        let headline = trimmed(latest.headline)
+        if !headline.isEmpty { return headline }
+
+        let summary = trimmed(latest.summary)
+        if !summary.isEmpty { return summary }
+
+        let body = latest.body.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !body.isEmpty { return String(body.prefix(60)) }
+
+        return nil
+    }
+
+    private func trimmed(_ value: String?) -> String {
+        value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private var avatar: some View {

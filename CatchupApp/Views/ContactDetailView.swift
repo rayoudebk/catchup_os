@@ -23,6 +23,7 @@ struct ContactDetailView: View {
     @State private var transcriptionError: String?
     @State private var transcriptionLanguage: TranscriptionLanguageOption = .englishUS
     @State private var showComposerLanguageSelector = false
+    @State private var showNoteSavedFeedback = false
 
     @State private var reminderDraft = ""
     @State private var giftIdeaDraft = ""
@@ -34,6 +35,13 @@ struct ContactDetailView: View {
     @State private var editHeadline = ""
     @State private var editSummary = ""
     @State private var editContent = ""
+    @State private var editIsRecording = false
+    @State private var editIsTranscribing = false
+    @State private var editRecorder: AVAudioRecorder?
+    @State private var editRecordingURL: URL?
+    @State private var showEditLanguageSelector = false
+    @State private var editUsedVoiceInput = false
+    @FocusState private var focusedComposerField: ComposerFocusField?
 
     private let categoryManager = CategoryManager.shared
 
@@ -252,11 +260,13 @@ struct ContactDetailView: View {
                 TextField("Note headline", text: $composerHeadline)
                     .fontWeight(.semibold)
                     .textInputAutocapitalization(.sentences)
+                    .focused($focusedComposerField, equals: .headline)
 
                 Divider()
 
                 TextEditor(text: $composerText)
                     .frame(minHeight: 200)
+                    .focused($focusedComposerField, equals: .body)
 
                 if isTranscribing {
                     HStack(spacing: 8) {
@@ -307,6 +317,12 @@ struct ContactDetailView: View {
                     }
                     .disabled(allComposerFieldsEmpty || isTranscribing)
                     .buttonStyle(.borderedProminent)
+                }
+
+                if showNoteSavedFeedback {
+                    NoteSavedFeedbackView()
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
                 }
             }
         }
@@ -443,31 +459,22 @@ struct ContactDetailView: View {
         } else {
             ForEach(sortedNotes) { note in
                 let details = noteDetails(for: note)
-                HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(details.headline)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .lineLimit(1)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(details.headline)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
 
-                        HStack(spacing: 8) {
-                            Text(note.createdAt, style: .date)
-                            Text(note.createdAt, style: .time)
-                            noteSourceBadge(note.source)
-                        }
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    HStack(spacing: 8) {
+                        Text(note.createdAt, style: .date)
+                        Text(note.createdAt, style: .time)
                     }
-
-                    Spacer()
-
-                    Button {
-                        beginEditing(note: note)
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    beginEditing(note: note)
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
@@ -528,6 +535,50 @@ struct ContactDetailView: View {
                 TextEditor(text: $editContent)
                     .frame(minHeight: 220)
 
+                if editIsTranscribing {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Transcribing on device...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                if showEditLanguageSelector {
+                    HStack(spacing: 8) {
+                        Text("Speech language")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        editLanguageChip(.englishUS, short: "ENG")
+                        editLanguageChip(.frenchFR, short: "FR")
+                        Spacer()
+                    }
+                }
+
+                HStack {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            showEditLanguageSelector.toggle()
+                        }
+                    } label: {
+                        Image(systemName: editIsRecording ? "mic.fill" : "mic")
+                            .font(.headline)
+                            .frame(width: 40, height: 40)
+                            .background(editIsRecording ? Color.red.opacity(0.2) : Color(.secondarySystemBackground))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .onLongPressGesture(minimumDuration: 0.2, maximumDistance: 80, pressing: { pressing in
+                        if pressing {
+                            if !editIsRecording { startEditRecording() }
+                        } else if editIsRecording {
+                            stopEditRecordingAndTranscribe()
+                        }
+                    }, perform: {})
+
+                    Spacer()
+                }
+
                 Button(role: .destructive) {
                     deleteEditingNote()
                 } label: {
@@ -540,6 +591,7 @@ struct ContactDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        stopEditRecordingIfNeeded()
                         editingNote = nil
                     }
                 }
@@ -547,7 +599,11 @@ struct ContactDetailView: View {
                     Button("Save") {
                         saveEditedNote()
                     }
+                    .disabled(editIsTranscribing)
                 }
+            }
+            .onDisappear {
+                stopEditRecordingIfNeeded()
             }
         }
     }
@@ -591,23 +647,25 @@ struct ContactDetailView: View {
         .buttonStyle(.plain)
     }
 
-    @ViewBuilder
-    private func noteSourceBadge(_ source: NoteSource) -> some View {
-        switch source {
-        case .typed:
-            Text("typed")
-        case .voice:
-            Text("voice")
-                .foregroundColor(.blue)
-        case .migratedLegacy:
-            Text("legacy")
-                .foregroundColor(.orange)
+    private func editLanguageChip(_ option: TranscriptionLanguageOption, short: String) -> some View {
+        Button(short) {
+            transcriptionLanguage = option
+            withAnimation(.easeInOut(duration: 0.15)) {
+                showEditLanguageSelector = false
+            }
         }
+        .font(.caption)
+        .fontWeight(.semibold)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(transcriptionLanguage == option ? Color.accentColor.opacity(0.2) : Color(.secondarySystemBackground))
+        .foregroundColor(transcriptionLanguage == option ? .accentColor : .secondary)
+        .clipShape(Capsule())
+        .buttonStyle(.plain)
     }
 
     private func noteDetails(for note: ContactNote) -> ParsedNoteDetails {
         let title = sanitized(note.headline)
-        let summary = sanitized(note.summary)
         let content = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let fallbackHeadline: String
@@ -619,16 +677,8 @@ struct ContactDetailView: View {
             fallbackHeadline = "Note"
         }
 
-        let fallbackSummary: String
-        if !summary.isEmpty {
-            fallbackSummary = summary
-        } else {
-            fallbackSummary = ""
-        }
-
         return ParsedNoteDetails(
-            headline: fallbackHeadline,
-            summary: fallbackSummary
+            headline: fallbackHeadline
         )
     }
 
@@ -640,6 +690,9 @@ struct ContactDetailView: View {
         editHeadline = sanitized(note.headline)
         editSummary = sanitized(note.summary)
         editContent = note.body
+        editUsedVoiceInput = false
+        showEditLanguageSelector = false
+        editIsTranscribing = false
         editingNote = note
     }
 
@@ -664,9 +717,15 @@ struct ContactDetailView: View {
         note.headline = trimmedHeadline.isEmpty ? nil : trimmedHeadline
         note.summary = trimmedSummary.isEmpty ? nil : trimmedSummary
         note.body = finalBody
+        if editUsedVoiceInput {
+            note.source = .voice
+            note.transcriptLanguage = transcriptionLanguage.rawValue
+        }
         note.updatedAt = Date()
 
         try? modelContext.save()
+        stopEditRecordingIfNeeded()
+        editUsedVoiceInput = false
         editingNote = nil
     }
 
@@ -674,6 +733,8 @@ struct ContactDetailView: View {
         guard let note = editingNote else { return }
         modelContext.delete(note)
         try? modelContext.save()
+        stopEditRecordingIfNeeded()
+        editUsedVoiceInput = false
         editingNote = nil
     }
 
@@ -776,11 +837,16 @@ struct ContactDetailView: View {
         )
 
         modelContext.insert(note)
-        try? modelContext.save()
-
-        composerHeadline = ""
-        composerText = ""
-        composerSource = .typed
+        do {
+            try modelContext.save()
+            dismissComposerKeyboard()
+            composerHeadline = ""
+            composerText = ""
+            composerSource = .typed
+            triggerNoteSavedFeedback()
+        } catch {
+            transcriptionError = "Could not save note: \(error.localizedDescription)"
+        }
     }
 
     private func saveGiftIdea() {
@@ -820,6 +886,11 @@ struct ContactDetailView: View {
     }
 
     private func startRecording() {
+        guard hasAnyDownloadedTranscriptionModel() else {
+            transcriptionError = "Voice transcription model not downloaded. Go to Settings and download a model first."
+            return
+        }
+
         let session = AVAudioSession.sharedInstance()
         let permissionHandler: (Bool) -> Void = { granted in
             guard granted else {
@@ -898,9 +969,169 @@ struct ContactDetailView: View {
         }
     }
 
+    private func startEditRecording() {
+        guard hasAnyDownloadedTranscriptionModel() else {
+            transcriptionError = "Voice transcription model not downloaded. Go to Settings and download a model first."
+            return
+        }
+
+        let session = AVAudioSession.sharedInstance()
+        let permissionHandler: (Bool) -> Void = { granted in
+            guard granted else {
+                DispatchQueue.main.async {
+                    transcriptionError = "Microphone access is required to record voice notes."
+                }
+                return
+            }
+
+            DispatchQueue.main.async {
+                do {
+                    try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+                    try session.setActive(true)
+
+                    let url = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("m4a")
+
+                    let settings: [String: Any] = [
+                        AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                        AVSampleRateKey: 44_100,
+                        AVNumberOfChannelsKey: 1,
+                        AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                    ]
+
+                    let recorder = try AVAudioRecorder(url: url, settings: settings)
+                    recorder.record()
+
+                    self.editRecorder = recorder
+                    self.editRecordingURL = url
+                    self.editIsRecording = true
+                } catch {
+                    transcriptionError = "Could not start recording: \(error.localizedDescription)"
+                }
+            }
+        }
+
+        if #available(iOS 17.0, *) {
+            AVAudioApplication.requestRecordPermission(completionHandler: permissionHandler)
+        } else {
+            session.requestRecordPermission(permissionHandler)
+        }
+    }
+
+    private func stopEditRecordingAndTranscribe() {
+        editRecorder?.stop()
+        editRecorder = nil
+        editIsRecording = false
+
+        guard let audioURL = editRecordingURL else { return }
+        editRecordingURL = nil
+
+        editIsTranscribing = true
+        Task {
+            do {
+                let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
+                    audioURL: audioURL,
+                    localeIdentifier: transcriptionLanguage.rawValue
+                )
+                await MainActor.run {
+                    if editContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        editContent = text
+                    } else {
+                        editContent += "\n\n\(text)"
+                    }
+                    editUsedVoiceInput = true
+                    editIsTranscribing = false
+                    try? FileManager.default.removeItem(at: audioURL)
+                }
+            } catch {
+                await MainActor.run {
+                    transcriptionError = error.localizedDescription
+                    editIsTranscribing = false
+                    try? FileManager.default.removeItem(at: audioURL)
+                }
+            }
+        }
+    }
+
+    private func stopEditRecordingIfNeeded() {
+        if editIsRecording {
+            editRecorder?.stop()
+        }
+        if let audioURL = editRecordingURL {
+            try? FileManager.default.removeItem(at: audioURL)
+        }
+        editRecorder = nil
+        editRecordingURL = nil
+        editIsRecording = false
+        editIsTranscribing = false
+    }
+
+    private func hasAnyDownloadedTranscriptionModel() -> Bool {
+        let manager = WhisperModelManager.shared
+        return WhisperModelVariant.allCases.contains { manager.isModelAvailable($0) }
+    }
+
+    private func dismissComposerKeyboard() {
+        focusedComposerField = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private func triggerNoteSavedFeedback() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+            showNoteSavedFeedback = true
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            withAnimation(.easeOut(duration: 0.25)) {
+                showNoteSavedFeedback = false
+            }
+        }
+    }
+
 }
 
 private struct ParsedNoteDetails {
     let headline: String
-    let summary: String
+}
+
+private enum ComposerFocusField: Hashable {
+    case headline
+    case body
+}
+
+private struct NoteSavedFeedbackView: View {
+    @State private var animate = false
+    private let colors: [Color] = [.blue, .pink, .orange, .green, .purple, .yellow]
+    private let xOffsets: [CGFloat] = [-52, -36, -20, -4, 12, 28, 44]
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(xOffsets.enumerated()), id: \.offset) { index, x in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(colors[index % colors.count])
+                    .frame(width: 4, height: 9)
+                    .offset(
+                        x: animate ? x : 0,
+                        y: animate ? -28 - CGFloat(index % 3) * 9 : -4
+                    )
+                    .rotationEffect(.degrees(animate ? Double(index * 24 - 60) : 0))
+                    .opacity(animate ? 0 : 1)
+                    .animation(.easeOut(duration: 0.65).delay(Double(index) * 0.02), value: animate)
+            }
+
+            Label("Saved", systemImage: "checkmark.circle.fill")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(Capsule())
+        }
+        .frame(height: 44)
+        .onAppear {
+            animate = true
+        }
+    }
 }
