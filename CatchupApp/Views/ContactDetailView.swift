@@ -66,7 +66,10 @@ struct ContactDetailView: View {
             Section {
                 giftIdeaCard
             } header: {
-                Label("Next Gift Idea", systemImage: "gift.fill")
+                HStack(spacing: 6) {
+                    Text("Gift Idea")
+                    Image(systemName: "gift.fill")
+                }
             }
 
             Section("Notes Record") {
@@ -154,6 +157,8 @@ struct ContactDetailView: View {
 
     private var profileHeader: some View {
         VStack(spacing: 10) {
+            profileAvatar
+
             Text(contact.name)
                 .font(.title3)
                 .fontWeight(.semibold)
@@ -189,6 +194,33 @@ struct ContactDetailView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.vertical, 4)
+    }
+
+    private var profileAvatar: some View {
+        Group {
+            if
+                let data = contact.profileImageData,
+                let uiImage = UIImage(data: data)
+            {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "person.crop.circle.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(6)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(width: 72, height: 72)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(Color(.separator).opacity(0.35), lineWidth: 0.5)
+        )
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var noteComposerCard: some View {
@@ -288,7 +320,7 @@ struct ContactDetailView: View {
                 enabled: hasPhone,
                 color: .green
             ) {
-                if let phone = contact.phoneNumber {
+                if let phone = primaryPhoneNumber {
                     openWhatsAppCall(phoneNumber: phone)
                 }
             }
@@ -299,7 +331,7 @@ struct ContactDetailView: View {
                 enabled: hasPhone,
                 color: .blue
             ) {
-                if let phone = contact.phoneNumber {
+                if let phone = primaryPhoneNumber {
                     openWhatsAppChat(phoneNumber: phone)
                 }
             }
@@ -391,19 +423,15 @@ struct ContactDetailView: View {
     }
 
     private var giftIdeaCard: some View {
-        HStack(spacing: 8) {
-            TextField("Add a gift idea", text: $giftIdeaDraft)
-                .textInputAutocapitalization(.sentences)
-
-            Button {
-                saveGiftIdea()
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title3)
+        TextField("Add a gift idea", text: $giftIdeaDraft)
+            .textInputAutocapitalization(.sentences)
+            .onChange(of: giftIdeaDraft) { _, newValue in
+                contact.giftIdea = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                try? modelContext.save()
             }
-            .disabled(giftIdeaUnchanged)
-            .buttonStyle(.plain)
-        }
+            .onSubmit {
+                saveGiftIdea()
+            }
         .padding(.vertical, 4)
     }
 
@@ -534,7 +562,7 @@ struct ContactDetailView: View {
     }
 
     private var hasPhone: Bool {
-        !(contact.phoneNumber ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        primaryPhoneNumber != nil
     }
 
     private var allComposerFieldsEmpty: Bool {
@@ -659,6 +687,19 @@ struct ContactDetailView: View {
         let cleanNumber = phoneNumber.filter(\.isNumber)
         guard let url = URL(string: "https://wa.me/\(cleanNumber)?call=1") else { return }
         UIApplication.shared.open(url)
+    }
+
+    private var primaryPhoneNumber: String? {
+        firstEntry(from: contact.phoneNumber)
+    }
+
+    private func firstEntry(from raw: String?) -> String? {
+        guard let raw else { return nil }
+        let separators = CharacterSet(charactersIn: "•\n,;|")
+        let parts = raw.components(separatedBy: separators)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return parts.first
     }
 
     private func defaultEventDate() -> Date {

@@ -318,8 +318,18 @@ struct AddContactView: View {
             guard let cnContact = byIdentifier[identifier] else { continue }
 
             let name = displayName(for: cnContact)
-            let phone = cnContact.phoneNumbers.first?.value.stringValue
-            let email = cnContact.emailAddresses.first?.value as String?
+            let phoneValues = orderedUnique(
+                cnContact.phoneNumbers
+                    .map { $0.value.stringValue.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+            let emailValues = orderedUnique(
+                cnContact.emailAddresses
+                    .map { String($0.value).trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+                    .filter { !$0.isEmpty }
+            )
+            let phone = phoneValues.isEmpty ? nil : phoneValues.joined(separator: " • ")
+            let email = emailValues.isEmpty ? nil : emailValues.joined(separator: " • ")
             let birthday = cnContact.birthday?.date
             let imageData = cnContact.imageData ?? cnContact.thumbnailImageData
 
@@ -401,6 +411,17 @@ struct AddContactView: View {
         if contact.imageData != nil || contact.thumbnailImageData != nil { score += 1 }
 
         return score
+    }
+
+    private func orderedUnique(_ values: [String]) -> [String] {
+        var seen: Set<String> = []
+        var ordered: [String] = []
+        for value in values {
+            if seen.insert(value).inserted {
+                ordered.append(value)
+            }
+        }
+        return ordered
     }
 }
 

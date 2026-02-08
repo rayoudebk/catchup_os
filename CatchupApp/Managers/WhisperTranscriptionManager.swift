@@ -43,8 +43,37 @@ final class WhisperModelManager: ObservableObject {
 
     private let preferredModelKey = "preferredWhisperModel"
     private let fallbackReasonKey = "lastWhisperFallbackReason"
+    private let backgroundSessionIdentifier = "rayoudev.catchup.whisper.model-download"
+    private let downloadRelay: DownloadRelay
+    private var activeDownloadTask: URLSessionDownloadTask?
+    private var backgroundSessionCompletionHandler: (() -> Void)?
 
-    private init() {}
+    private lazy var backgroundSession: URLSession = {
+        let config = URLSessionConfiguration.background(withIdentifier: backgroundSessionIdentifier)
+        config.waitsForConnectivity = true
+        config.allowsExpensiveNetworkAccess = true
+        config.allowsConstrainedNetworkAccess = false
+        config.sessionSendsLaunchEvents = true
+        config.isDiscretionary = false
+        return URLSession(configuration: config, delegate: downloadRelay, delegateQueue: nil)
+    }()
+
+    private init() {
+        downloadRelay = DownloadRelay()
+        downloadRelay.onProgress = { [weak self] received, total in
+            Task { @MainActor in
+                self?.downloadReceivedBytes = received
+                self?.downloadTotalBytes = max(0, total)
+            }
+        }
+        downloadRelay.onBackgroundEventsFinished = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.backgroundSessionCompletionHandler?()
+                self.backgroundSessionCompletionHandler = nil
+            }
+        }
+    }
 
     var preferredModel: WhisperModelVariant {
         get {
@@ -108,6 +137,37 @@ final class WhisperModelManager: ObservableObject {
         return "\(received)/\(total) (\(max(0, min(100, percent)))%)"
     }
 
+    func downloadProgressFraction(for variant: WhisperModelVariant) -> Double? {
+        guard isDownloading(variant), downloadTotalBytes > 0 else { return nil }
+        let fraction = Double(downloadReceivedBytes) / Double(downloadTotalBytes)
+        return max(0, min(1, fraction))
+    }
+
+    func registerBackgroundSessionCompletionHandler(identifier: String, completionHandler: @escaping () -> Void) {
+        guard identifier == backgroundSessionIdentifier else { return }
+        backgroundSessionCompletionHandler = completionHandler
+        _ = backgroundSession
+    }
+
+    func cancelDownload() {
+        guard isDownloading else { return }
+        lastDownloadMessage = "Canceling download..."
+        activeDownloadTask?.cancel()
+    }
+
+    func isCancellationError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        if let urlError = error as? URLError {
+            return urlError.code == .cancelled
+        }
+
+        let nsError = error as NSError
+        return nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+    }
+
     func removeModel(_ variant: WhisperModelVariant) throws {
         let fileURL = modelURL(for: variant)
         if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -133,19 +193,38 @@ final class WhisperModelManager: ObservableObject {
         defer {
             isDownloading = false
             activeDownloadModel = nil
+            activeDownloadTask = nil
         }
 
         try ensureModelDirectoryExists()
 
         let remoteURL = remoteModelURL(for: variant)
-        let tempURL = try await downloadWithProgress(from: remoteURL)
+        let tempURL: URL
+        do {
+            tempURL = try await downloadWithProgress(from: remoteURL, for: variant)
+        } catch {
+            if isCancellationError(error) {
+                lastDownloadMessage = "Download canceled"
+                return
+            }
+            throw error
+        }
 
         let destinationURL = modelURL(for: variant)
+        try ensureModelDirectoryExists()
+
         if FileManager.default.fileExists(atPath: destinationURL.path) {
             try FileManager.default.removeItem(at: destinationURL)
         }
 
-        try FileManager.default.moveItem(at: tempURL, to: destinationURL)
+        do {
+            try FileManager.default.moveItem(at: tempURL, to: destinationURL)
+        } catch {
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+            throw error
+        }
 
         try FileManager.default.setAttributes(
             [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
@@ -155,27 +234,22 @@ final class WhisperModelManager: ObservableObject {
         lastDownloadMessage = "Downloaded \(variant.rawValue)"
     }
 
-    private func downloadWithProgress(from remoteURL: URL) async throws -> URL {
-        let config = URLSessionConfiguration.default
-        config.allowsExpensiveNetworkAccess = false
-        config.allowsConstrainedNetworkAccess = false
-        config.waitsForConnectivity = true
+    private func downloadWithProgress(from remoteURL: URL, for variant: WhisperModelVariant) async throws -> URL {
+        _ = backgroundSession
 
-        let delegate = DownloadRelay { [weak self] received, total in
-            Task { @MainActor in
-                self?.downloadReceivedBytes = received
-                self?.downloadTotalBytes = max(0, total)
+        return try await withTaskCancellationHandler(operation: {
+            try await withCheckedThrowingContinuation { continuation in
+                downloadRelay.continuation = continuation
+                let task = backgroundSession.downloadTask(with: remoteURL)
+                task.taskDescription = "whisper.\(variant.rawValue)"
+                activeDownloadTask = task
+                task.resume()
             }
-        }
-
-        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-        defer { session.invalidateAndCancel() }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            delegate.continuation = continuation
-            let task = session.downloadTask(with: remoteURL)
-            task.resume()
-        }
+        }, onCancel: {
+            Task { @MainActor [weak self] in
+                self?.activeDownloadTask?.cancel()
+            }
+        })
     }
 
     private var modelDirectoryURL: URL {
@@ -184,13 +258,27 @@ final class WhisperModelManager: ObservableObject {
     }
 
     private func ensureModelDirectoryExists() throws {
-        if !FileManager.default.fileExists(atPath: modelDirectoryURL.path) {
-            try FileManager.default.createDirectory(at: modelDirectoryURL, withIntermediateDirectories: true)
-            try FileManager.default.setAttributes(
-                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: modelDirectoryURL.path
-            )
+        let fm = FileManager.default
+        let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+
+        if !fm.fileExists(atPath: appSupport.path) {
+            try fm.createDirectory(at: appSupport, withIntermediateDirectories: true)
         }
+
+        var isDir: ObjCBool = false
+        if fm.fileExists(atPath: modelDirectoryURL.path, isDirectory: &isDir) {
+            if !isDir.boolValue {
+                try fm.removeItem(at: modelDirectoryURL)
+                try fm.createDirectory(at: modelDirectoryURL, withIntermediateDirectories: true)
+            }
+        } else {
+            try fm.createDirectory(at: modelDirectoryURL, withIntermediateDirectories: true)
+        }
+
+        try fm.setAttributes(
+            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+            ofItemAtPath: modelDirectoryURL.path
+        )
     }
 
     private func remoteModelURL(for variant: WhisperModelVariant) -> URL {
@@ -205,11 +293,8 @@ final class WhisperModelManager: ObservableObject {
 
 private final class DownloadRelay: NSObject, URLSessionDownloadDelegate {
     var continuation: CheckedContinuation<URL, Error>?
-    private let onProgress: (Int64, Int64) -> Void
-
-    init(onProgress: @escaping (Int64, Int64) -> Void) {
-        self.onProgress = onProgress
-    }
+    var onProgress: (Int64, Int64) -> Void = { _, _ in }
+    var onBackgroundEventsFinished: () -> Void = {}
 
     func urlSession(
         _ session: URLSession,
@@ -222,7 +307,21 @@ private final class DownloadRelay: NSObject, URLSessionDownloadDelegate {
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        continuation?.resume(returning: location)
+        do {
+            let stableTempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("whisper-download-\(UUID().uuidString)")
+                .appendingPathExtension("bin")
+
+            if FileManager.default.fileExists(atPath: stableTempURL.path) {
+                try FileManager.default.removeItem(at: stableTempURL)
+            }
+
+            try FileManager.default.moveItem(at: location, to: stableTempURL)
+            continuation?.resume(returning: stableTempURL)
+        } catch {
+            continuation?.resume(throwing: error)
+        }
+
         continuation = nil
     }
 
@@ -231,6 +330,10 @@ private final class DownloadRelay: NSObject, URLSessionDownloadDelegate {
             continuation?.resume(throwing: error)
             continuation = nil
         }
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        onBackgroundEventsFinished()
     }
 }
 

@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 @main
 struct CatchupApp: App {
+    @UIApplicationDelegateAdaptor(CatchupAppDelegate.self) private var appDelegate
     @AppStorage("appColorMode") private var appColorModeRawValue = AppColorMode.system.rawValue
 
     init() {
@@ -19,6 +21,21 @@ struct CatchupApp: App {
                 .preferredColorScheme(appColorMode.colorScheme)
         }
         .modelContainer(for: [Contact.self, ContactNote.self, ContactReminder.self, CheckIn.self])
+    }
+}
+
+final class CatchupAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        Task { @MainActor in
+            WhisperModelManager.shared.registerBackgroundSessionCompletionHandler(
+                identifier: identifier,
+                completionHandler: completionHandler
+            )
+        }
     }
 }
 

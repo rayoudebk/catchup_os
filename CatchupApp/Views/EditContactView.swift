@@ -54,21 +54,12 @@ struct EditContactView: View {
                             selection: $birthdayDraft,
                             displayedComponents: [.date]
                         )
-
-                        TextField("Birthday note", text: $contact.birthdayNote, axis: .vertical)
-                            .lineLimit(3...6)
                     }
                 }
 
                 Section("Gift Idea") {
                     TextField("What would they appreciate?", text: $contact.giftIdea, axis: .vertical)
                         .lineLimit(3...6)
-                }
-
-                Section("Options") {
-                    Toggle(isOn: $contact.isFavorite) {
-                        Label("Favorite", systemImage: "star.fill")
-                    }
                 }
             }
             .navigationTitle("Edit Contact")

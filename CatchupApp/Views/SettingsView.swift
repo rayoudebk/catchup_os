@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import UserNotifications
 import UIKit
 
 struct SettingsView: View {
@@ -12,7 +11,6 @@ struct SettingsView: View {
 
     @StateObject private var modelManager = WhisperModelManager.shared
 
-    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var showingShareSheet = false
     @State private var exportPayload = ""
     @State private var exportSubject = "Contacts+Notes Export"
@@ -46,29 +44,13 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Birthday Reminders") {
-                    HStack {
-                        Text("Permission")
-                        Spacer()
-                        Text(notificationStatusText)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Button("Enable Birthday Reminders") {
-                        BirthdayReminderManager.shared.requestAuthorization()
-                        refreshNotificationStatus()
-                    }
-
-                    Button("Open Notification Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
-                    }
-                }
-
                 Section("On-Device Transcription") {
                     modelRow(for: .largeV3, recommended: true)
                     modelRow(for: .largeV3Turbo, recommended: false)
+
+                    Text("Large model downloads can continue in the background. You can cancel anytime.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
 
                     if !modelManager.lastFallbackReason.isEmpty {
                         Text("Last fallback: \(modelManager.lastFallbackReason)")
@@ -128,9 +110,6 @@ struct SettingsView: View {
         } message: {
             Text(modelActionError ?? "")
         }
-        .onAppear {
-            refreshNotificationStatus()
-        }
     }
 
     private var currentColorMode: AppColorMode {
@@ -169,6 +148,12 @@ struct SettingsView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+
+                if let fraction = modelManager.downloadProgressFraction(for: model) {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                        .frame(width: 140)
+                }
             }
 
             Spacer()
@@ -182,40 +167,25 @@ struct SettingsView: View {
                     }
                 }
                 .disabled(anyModelIsDownloading)
+            } else if thisModelIsDownloading {
+                Button("Cancel", role: .destructive) {
+                    modelManager.cancelDownload()
+                }
             } else {
-                Button(thisModelIsDownloading ? "Downloading..." : "Download") {
+                Button("Download") {
                     Task {
                         do {
                             try await modelManager.downloadModel(model)
                         } catch {
-                            await MainActor.run {
-                                modelActionError = error.localizedDescription
+                            if !modelManager.isCancellationError(error) {
+                                await MainActor.run {
+                                    modelActionError = error.localizedDescription
+                                }
                             }
                         }
                     }
                 }
                 .disabled(anyModelIsDownloading)
-            }
-        }
-    }
-
-    private var notificationStatusText: String {
-        switch notificationStatus {
-        case .authorized, .provisional, .ephemeral:
-            return "Enabled"
-        case .denied:
-            return "Denied"
-        case .notDetermined:
-            return "Not Determined"
-        @unknown default:
-            return "Unknown"
-        }
-    }
-
-    private func refreshNotificationStatus() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
-            DispatchQueue.main.async {
-                notificationStatus = settings.authorizationStatus
             }
         }
     }
