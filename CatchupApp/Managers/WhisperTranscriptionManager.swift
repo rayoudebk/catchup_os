@@ -11,6 +11,8 @@ enum WhisperServiceError: LocalizedError {
     case missingModel
     case speechAuthorizationDenied
     case speechRecognizerUnavailable
+    case speechRecognizerTemporarilyUnavailable
+    case onDeviceAssetsUnavailable(language: String)
     case noTranscriptionResult
 
     var errorDescription: String? {
@@ -21,6 +23,10 @@ enum WhisperServiceError: LocalizedError {
             return "Speech recognition permission is required."
         case .speechRecognizerUnavailable:
             return "Speech recognizer is unavailable for this language."
+        case .speechRecognizerTemporarilyUnavailable:
+            return "Speech recognizer is temporarily unavailable. Please try again."
+        case .onDeviceAssetsUnavailable(let language):
+            return "On-device speech assets for \(language) are not available yet. Connect to Wi-Fi and try again, or switch language."
         case .noTranscriptionResult:
             return "Could not transcribe audio."
         }
@@ -344,16 +350,32 @@ final class WhisperOnDeviceTranscriptionService: TranscriptionService {
     private let modelManager = WhisperModelManager.shared
 
     func transcribe(audioURL: URL, localeIdentifier: String?) async throws -> String {
+        try await transcribe(audioURL: audioURL, localeIdentifier: localeIdentifier, onPartialResult: nil)
+    }
+
+    func transcribe(
+        audioURL: URL,
+        localeIdentifier: String?,
+        onPartialResult: (@MainActor (String) -> Void)?
+    ) async throws -> String {
         let preferred = modelManager.preferredModel
 
         if modelManager.isModelAvailable(preferred) {
             do {
-                return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
+                return try await transcribeWithSpeechKit(
+                    audioURL: audioURL,
+                    localeIdentifier: localeIdentifier,
+                    onPartialResult: onPartialResult
+                )
             } catch {
                 if preferred == .largeV3 {
                     modelManager.setFallbackReason("Fallback to large-v3-turbo due to runtime limits")
                     if modelManager.isModelAvailable(.largeV3Turbo) {
-                        return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
+                        return try await transcribeWithSpeechKit(
+                            audioURL: audioURL,
+                            localeIdentifier: localeIdentifier,
+                            onPartialResult: onPartialResult
+                        )
                     }
                 }
                 throw error
@@ -362,18 +384,30 @@ final class WhisperOnDeviceTranscriptionService: TranscriptionService {
 
         if preferred == .largeV3, modelManager.isModelAvailable(.largeV3Turbo) {
             modelManager.setFallbackReason("large-v3 missing, using large-v3-turbo")
-            return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
+            return try await transcribeWithSpeechKit(
+                audioURL: audioURL,
+                localeIdentifier: localeIdentifier,
+                onPartialResult: onPartialResult
+            )
         }
 
         if preferred == .largeV3Turbo, modelManager.isModelAvailable(.largeV3) {
             modelManager.setFallbackReason("large-v3-turbo missing, using large-v3")
-            return try await transcribeWithSpeechKit(audioURL: audioURL, localeIdentifier: localeIdentifier)
+            return try await transcribeWithSpeechKit(
+                audioURL: audioURL,
+                localeIdentifier: localeIdentifier,
+                onPartialResult: onPartialResult
+            )
         }
 
         throw WhisperServiceError.missingModel
     }
 
-    private func transcribeWithSpeechKit(audioURL: URL, localeIdentifier: String?) async throws -> String {
+    private func transcribeWithSpeechKit(
+        audioURL: URL,
+        localeIdentifier: String?,
+        onPartialResult: (@MainActor (String) -> Void)?
+    ) async throws -> String {
         // Current runtime adapter is Apple's local recognizer. The model lifecycle,
         // storage policy, and fallback behavior remain Whisper-oriented and can be
         // swapped to a whisper.cpp runtime without UI changes.
@@ -386,41 +420,36 @@ final class WhisperOnDeviceTranscriptionService: TranscriptionService {
         guard let recognizer = SFSpeechRecognizer(locale: locale) else {
             throw WhisperServiceError.speechRecognizerUnavailable
         }
+        guard recognizer.isAvailable else {
+            throw WhisperServiceError.speechRecognizerTemporarilyUnavailable
+        }
 
-        let request = SFSpeechURLRecognitionRequest(url: audioURL)
-        request.shouldReportPartialResults = false
-        request.requiresOnDeviceRecognition = true
+        let localeTag = localeIdentifier ?? "en-US"
 
-        return try await withCheckedThrowingContinuation { continuation in
-            var didResume = false
-
-            let task = recognizer.recognitionTask(with: request) { result, error in
-                if didResume {
-                    return
+        do {
+            return try await recognizeAudioFile(
+                at: audioURL,
+                with: recognizer,
+                localeIdentifier: localeTag,
+                requiresOnDeviceRecognition: true,
+                onPartialResult: onPartialResult
+            )
+        } catch {
+            if shouldFallbackToServerRecognition(for: error) {
+                do {
+                    return try await recognizeAudioFile(
+                        at: audioURL,
+                        with: recognizer,
+                        localeIdentifier: localeTag,
+                        requiresOnDeviceRecognition: false,
+                        onPartialResult: onPartialResult
+                    )
+                } catch {
+                    throw mapSpeechError(error, localeIdentifier: localeTag, attemptedOnDevice: false)
                 }
-
-                if let error {
-                    didResume = true
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                guard let result, result.isFinal else {
-                    return
-                }
-
-                let text = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else {
-                    didResume = true
-                    continuation.resume(throwing: WhisperServiceError.noTranscriptionResult)
-                    return
-                }
-
-                didResume = true
-                continuation.resume(returning: text)
             }
 
-            _ = task
+            throw mapSpeechError(error, localeIdentifier: localeTag, attemptedOnDevice: true)
         }
     }
 
@@ -430,5 +459,133 @@ final class WhisperOnDeviceTranscriptionService: TranscriptionService {
                 continuation.resume(returning: status == .authorized)
             }
         }
+    }
+
+    private func recognizeAudioFile(
+        at audioURL: URL,
+        with recognizer: SFSpeechRecognizer,
+        localeIdentifier: String,
+        requiresOnDeviceRecognition: Bool,
+        onPartialResult: (@MainActor (String) -> Void)?
+    ) async throws -> String {
+        if requiresOnDeviceRecognition && !recognizer.supportsOnDeviceRecognition {
+            throw WhisperServiceError.onDeviceAssetsUnavailable(language: localeDisplayName(for: localeIdentifier))
+        }
+
+        let request = SFSpeechURLRecognitionRequest(url: audioURL)
+        request.shouldReportPartialResults = onPartialResult != nil
+        request.requiresOnDeviceRecognition = requiresOnDeviceRecognition
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var didResume = false
+            var recognitionTask: SFSpeechRecognitionTask?
+
+            recognitionTask = recognizer.recognitionTask(with: request) { result, error in
+                if didResume {
+                    return
+                }
+
+                if let error {
+                    didResume = true
+                    recognitionTask?.cancel()
+                    recognitionTask = nil
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let result else {
+                    return
+                }
+
+                let transcript = result.bestTranscription.formattedString.trimmingCharacters(in: .whitespacesAndNewlines)
+                if let onPartialResult, !transcript.isEmpty {
+                    Task { @MainActor in
+                        onPartialResult(transcript)
+                    }
+                }
+
+                guard result.isFinal else {
+                    return
+                }
+
+                guard !transcript.isEmpty else {
+                    didResume = true
+                    recognitionTask = nil
+                    continuation.resume(throwing: WhisperServiceError.noTranscriptionResult)
+                    return
+                }
+
+                didResume = true
+                recognitionTask = nil
+                continuation.resume(returning: transcript)
+            }
+        }
+    }
+
+    private func shouldFallbackToServerRecognition(for error: Error) -> Bool {
+        if let serviceError = error as? WhisperServiceError {
+            switch serviceError {
+            case .onDeviceAssetsUnavailable:
+                return true
+            default:
+                return false
+            }
+        }
+
+        if isSpeechAssetsAccessError(error) {
+            return true
+        }
+
+        return false
+    }
+
+    private func mapSpeechError(
+        _ error: Error,
+        localeIdentifier: String,
+        attemptedOnDevice: Bool
+    ) -> Error {
+        if let serviceError = error as? WhisperServiceError {
+            return serviceError
+        }
+
+        let nsError = error as NSError
+        let message = nsError.localizedDescription.lowercased()
+
+        if message.contains("not authorized") || message.contains("authorization") || message.contains("denied") {
+            return WhisperServiceError.speechAuthorizationDenied
+        }
+
+        if attemptedOnDevice && isSpeechAssetsAccessError(error) {
+            return WhisperServiceError.onDeviceAssetsUnavailable(language: localeDisplayName(for: localeIdentifier))
+        }
+
+        if message.contains("recognizer") && message.contains("unavailable") {
+            return WhisperServiceError.speechRecognizerUnavailable
+        }
+
+        return error
+    }
+
+    private func isSpeechAssetsAccessError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        let message = nsError.localizedDescription.lowercased()
+
+        if message.contains("failed to access assets") {
+            return true
+        }
+
+        if nsError.domain == "kAFAssistantErrorDomain" {
+            // Known speech service failures returned when local assets are missing.
+            return nsError.code == 1101 || nsError.code == 1107 || nsError.code == 1110
+        }
+
+        return false
+    }
+
+    private func localeDisplayName(for identifier: String) -> String {
+        if let localized = Locale.current.localizedString(forIdentifier: identifier), !localized.isEmpty {
+            return localized
+        }
+        return identifier
     }
 }

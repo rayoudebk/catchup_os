@@ -340,6 +340,7 @@ private struct QuickNoteComposerView: View {
     @State private var showLanguageSelector = false
     @State private var isRecording = false
     @State private var isTranscribing = false
+    @State private var transcriptionPartialText = ""
     @State private var recorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var composerError: String?
@@ -372,11 +373,20 @@ private struct QuickNoteComposerView: View {
                         .frame(minHeight: 150)
 
                     if isTranscribing {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Transcribing on device...")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Transcribing on device...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            if !transcriptionPartialText.isEmpty {
+                                Text(transcriptionPartialText)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(3)
+                            }
                         }
                     }
 
@@ -461,6 +471,7 @@ private struct QuickNoteComposerView: View {
                     recorder = nil
                     isRecording = false
                 }
+                transcriptionPartialText = ""
             }
         }
     }
@@ -530,6 +541,7 @@ private struct QuickNoteComposerView: View {
             composerError = "Voice transcription model not downloaded. Go to Settings and download a model first."
             return
         }
+        transcriptionPartialText = ""
 
         let session = AVAudioSession.sharedInstance()
 
@@ -588,12 +600,16 @@ private struct QuickNoteComposerView: View {
 
         guard let audioURL = recordingURL else { return }
         isTranscribing = true
+        transcriptionPartialText = ""
 
         Task {
             do {
                 let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
                     audioURL: audioURL,
-                    localeIdentifier: transcriptionLanguage.rawValue
+                    localeIdentifier: transcriptionLanguage.rawValue,
+                    onPartialResult: { partial in
+                        transcriptionPartialText = partial
+                    }
                 )
 
                 await MainActor.run {
@@ -603,12 +619,14 @@ private struct QuickNoteComposerView: View {
                         noteText += "\n\n\(text)"
                     }
                     isTranscribing = false
+                    transcriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             } catch {
                 await MainActor.run {
                     composerError = error.localizedDescription
                     isTranscribing = false
+                    transcriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             }

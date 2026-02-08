@@ -1,8 +1,11 @@
 import SwiftUI
 import SwiftData
 import UIKit
+import AVFoundation
+import Speech
 
 struct SettingsView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Query private var contacts: [Contact]
     @Query private var notes: [ContactNote]
@@ -16,6 +19,8 @@ struct SettingsView: View {
     @State private var exportSubject = "Contacts+Notes Export"
     @State private var showingClearAlert = false
     @State private var modelActionError: String?
+    @State private var microphonePermissionState: SpeechPermissionState = .notDetermined
+    @State private var speechRecognitionPermissionState: SpeechPermissionState = .notDetermined
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,16 +49,32 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("On-Device Transcription") {
-                    modelRow(for: .largeV3, recommended: true)
-                    modelRow(for: .largeV3Turbo, recommended: false)
+                Section("Speech to Text") {
+                    permissionRow(title: "Microphone", state: microphonePermissionState)
+                    permissionRow(title: "Speech Recognition", state: speechRecognitionPermissionState)
 
-                    Text("Large model downloads can continue in the background. You can cancel anytime.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    if !hasRequiredSpeechPermissions {
+                        Button("Allow Required Permissions") {
+                            requestRequiredSpeechPermissions()
+                        }
+                    }
 
-                    if !modelManager.lastFallbackReason.isEmpty {
-                        Text("Last fallback: \(modelManager.lastFallbackReason)")
+                    Button("Manage Permissions in iOS Settings") {
+                        openAppSettings()
+                    }
+
+                    modelRow(
+                        for: .largeV3,
+                        recommended: false,
+                        canDownload: hasRequiredSpeechPermissions
+                    )
+
+                    if !hasRequiredSpeechPermissions {
+                        Text("Allow Microphone and Speech Recognition before downloading or using speech to text.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("To revoke permissions later, use iOS Settings.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -110,10 +131,22 @@ struct SettingsView: View {
         } message: {
             Text(modelActionError ?? "")
         }
+        .onAppear {
+            refreshSpeechPermissionStates()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                refreshSpeechPermissionStates()
+            }
+        }
     }
 
     private var currentColorMode: AppColorMode {
         AppColorMode(rawValue: appColorModeRawValue) ?? .system
+    }
+
+    private var hasRequiredSpeechPermissions: Bool {
+        microphonePermissionState.isGranted && speechRecognitionPermissionState.isGranted
     }
 
     private var privacyInfoBanner: some View {
@@ -132,7 +165,11 @@ struct SettingsView: View {
     }
 
     @ViewBuilder
-    private func modelRow(for model: WhisperModelVariant, recommended: Bool) -> some View {
+    private func modelRow(
+        for model: WhisperModelVariant,
+        recommended: Bool,
+        canDownload: Bool
+    ) -> some View {
         let thisModelIsDownloading = modelManager.isDownloading(model)
         let anyModelIsDownloading = modelManager.isDownloading
 
@@ -185,9 +222,104 @@ struct SettingsView: View {
                         }
                     }
                 }
-                .disabled(anyModelIsDownloading)
+                .disabled(anyModelIsDownloading || !canDownload)
             }
         }
+    }
+
+    private func permissionRow(title: String, state: SpeechPermissionState) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Label(state.label, systemImage: state.icon)
+                .font(.caption)
+                .foregroundColor(state.color)
+        }
+    }
+
+    private func refreshSpeechPermissionStates() {
+        microphonePermissionState = currentMicrophonePermissionState()
+        speechRecognitionPermissionState = currentSpeechRecognitionPermissionState()
+    }
+
+    private func currentMicrophonePermissionState() -> SpeechPermissionState {
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted:
+                return .granted
+            case .denied:
+                return .denied
+            case .undetermined:
+                return .notDetermined
+            @unknown default:
+                return .notDetermined
+            }
+        } else {
+            switch AVAudioSession.sharedInstance().recordPermission {
+            case .granted:
+                return .granted
+            case .denied:
+                return .denied
+            case .undetermined:
+                return .notDetermined
+            @unknown default:
+                return .notDetermined
+            }
+        }
+    }
+
+    private func currentSpeechRecognitionPermissionState() -> SpeechPermissionState {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized:
+            return .granted
+        case .denied, .restricted:
+            return .denied
+        case .notDetermined:
+            return .notDetermined
+        @unknown default:
+            return .notDetermined
+        }
+    }
+
+    private func requestRequiredSpeechPermissions() {
+        Task {
+            _ = await requestMicrophonePermission()
+            _ = await requestSpeechRecognitionPermission()
+
+            await MainActor.run {
+                refreshSpeechPermissionStates()
+                if !hasRequiredSpeechPermissions {
+                    modelActionError = "Microphone and Speech Recognition permissions are required for speech to text."
+                }
+            }
+        }
+    }
+
+    private func requestMicrophonePermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            if #available(iOS 17.0, *) {
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            } else {
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        }
+    }
+
+    private func requestSpeechRecognitionPermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status == .authorized)
+            }
+        }
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     private func exportData() {
@@ -330,6 +462,50 @@ struct SettingsView: View {
         }
 
         try? modelContext.save()
+    }
+}
+
+private enum SpeechPermissionState {
+    case granted
+    case denied
+    case notDetermined
+
+    var isGranted: Bool {
+        if case .granted = self { return true }
+        return false
+    }
+
+    var label: String {
+        switch self {
+        case .granted:
+            return "Allowed"
+        case .denied:
+            return "Denied"
+        case .notDetermined:
+            return "Not requested"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .granted:
+            return "checkmark.circle.fill"
+        case .denied:
+            return "xmark.circle.fill"
+        case .notDetermined:
+            return "questionmark.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .granted:
+            return .green
+        case .denied:
+            return .red
+        case .notDetermined:
+            return .secondary
+        }
     }
 }
 

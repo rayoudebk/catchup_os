@@ -18,6 +18,7 @@ struct ContactDetailView: View {
 
     @State private var isRecording = false
     @State private var isTranscribing = false
+    @State private var transcriptionPartialText = ""
     @State private var recorder: AVAudioRecorder?
     @State private var recordingURL: URL?
     @State private var transcriptionError: String?
@@ -37,6 +38,7 @@ struct ContactDetailView: View {
     @State private var editContent = ""
     @State private var editIsRecording = false
     @State private var editIsTranscribing = false
+    @State private var editTranscriptionPartialText = ""
     @State private var editRecorder: AVAudioRecorder?
     @State private var editRecordingURL: URL?
     @State private var showEditLanguageSelector = false
@@ -269,11 +271,20 @@ struct ContactDetailView: View {
                     .focused($focusedComposerField, equals: .body)
 
                 if isTranscribing {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("Transcribing on device...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Transcribing on device...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        if !transcriptionPartialText.isEmpty {
+                            Text(transcriptionPartialText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(3)
+                        }
                     }
                 }
 
@@ -536,11 +547,20 @@ struct ContactDetailView: View {
                     .frame(minHeight: 220)
 
                 if editIsTranscribing {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("Transcribing on device...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Transcribing on device...")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        if !editTranscriptionPartialText.isEmpty {
+                            Text(editTranscriptionPartialText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(3)
+                        }
                     }
                 }
 
@@ -693,6 +713,7 @@ struct ContactDetailView: View {
         editUsedVoiceInput = false
         showEditLanguageSelector = false
         editIsTranscribing = false
+        editTranscriptionPartialText = ""
         editingNote = note
     }
 
@@ -890,6 +911,7 @@ struct ContactDetailView: View {
             transcriptionError = "Voice transcription model not downloaded. Go to Settings and download a model first."
             return
         }
+        transcriptionPartialText = ""
 
         let session = AVAudioSession.sharedInstance()
         let permissionHandler: (Bool) -> Void = { granted in
@@ -943,11 +965,15 @@ struct ContactDetailView: View {
         guard let audioURL = recordingURL else { return }
 
         isTranscribing = true
+        transcriptionPartialText = ""
         Task {
             do {
                 let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
                     audioURL: audioURL,
-                    localeIdentifier: transcriptionLanguage.rawValue
+                    localeIdentifier: transcriptionLanguage.rawValue,
+                    onPartialResult: { partial in
+                        transcriptionPartialText = partial
+                    }
                 )
                 await MainActor.run {
                     if composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -957,12 +983,14 @@ struct ContactDetailView: View {
                     }
                     composerSource = .voice
                     isTranscribing = false
+                    transcriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             } catch {
                 await MainActor.run {
                     transcriptionError = error.localizedDescription
                     isTranscribing = false
+                    transcriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             }
@@ -974,6 +1002,7 @@ struct ContactDetailView: View {
             transcriptionError = "Voice transcription model not downloaded. Go to Settings and download a model first."
             return
         }
+        editTranscriptionPartialText = ""
 
         let session = AVAudioSession.sharedInstance()
         let permissionHandler: (Bool) -> Void = { granted in
@@ -1028,11 +1057,15 @@ struct ContactDetailView: View {
         editRecordingURL = nil
 
         editIsTranscribing = true
+        editTranscriptionPartialText = ""
         Task {
             do {
                 let text = try await WhisperOnDeviceTranscriptionService.shared.transcribe(
                     audioURL: audioURL,
-                    localeIdentifier: transcriptionLanguage.rawValue
+                    localeIdentifier: transcriptionLanguage.rawValue,
+                    onPartialResult: { partial in
+                        editTranscriptionPartialText = partial
+                    }
                 )
                 await MainActor.run {
                     if editContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1042,12 +1075,14 @@ struct ContactDetailView: View {
                     }
                     editUsedVoiceInput = true
                     editIsTranscribing = false
+                    editTranscriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             } catch {
                 await MainActor.run {
                     transcriptionError = error.localizedDescription
                     editIsTranscribing = false
+                    editTranscriptionPartialText = ""
                     try? FileManager.default.removeItem(at: audioURL)
                 }
             }
@@ -1065,6 +1100,7 @@ struct ContactDetailView: View {
         editRecordingURL = nil
         editIsRecording = false
         editIsTranscribing = false
+        editTranscriptionPartialText = ""
     }
 
     private func hasAnyDownloadedTranscriptionModel() -> Bool {
